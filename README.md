@@ -64,23 +64,43 @@ function App() {
 }
 ```
 
+### With Basic Authentication
+
+If your ttyd server requires authentication, you can provide credentials:
+
+```bash
+# Start ttyd with basic auth
+ttyd --writable --credential testuser:testpass bash
+```
+
+```tsx
+<Ttyd 
+  wsUrl="ws://localhost:7681/ws"
+  authToken={btoa('testuser:testpass')}
+  clientOptions={{
+    rendererType: 'webgl'
+  }}
+/>
+```
+
 ## API Reference
 
 ### Ttyd Component Props
 
-| Prop                | Type                          | Description                   | Default      |
-| ------------------- | ----------------------------- | ----------------------------- | ------------ |
-| `wsUrl`             | `string`                      | WebSocket URL of ttyd server  | **Required** |
-| `authToken`         | `string`                      | Authentication token          | -            |
-| `clientOptions`     | `ClientOptions`               | Terminal client options       | `{}`         |
-| `termOptions`       | `ITerminalOptions`            | Xterm.js terminal options     | `{}`         |
-| `onConnectionOpen`  | `(event: Event) => void`      | WebSocket open callback       | -            |
-| `onConnectionClose` | `(event: CloseEvent) => void` | WebSocket close callback      | -            |
-| `onConnectionError` | `(event: Event) => void`      | WebSocket error callback      | -            |
-| `onData`            | `(data: string) => void`      | Terminal data callback        | -            |
-| `id`                | `string`                      | Terminal container element ID | -            |
-| `className`         | `string`                      | Terminal container CSS class  | -            |
-| `addons`            | `TerminalAddon[]`             | Additional Xterm.js addons    | -            |
+| Prop                | Type                          | Description                                   | Default      |
+| ------------------- | ----------------------------- | --------------------------------------------- | ------------ |
+| `wsUrl`             | `string`                      | WebSocket URL of ttyd server                  | **Required** |
+| `tokenUrl`          | `string`                      | URL to fetch auth token (if using token auth) | -            |
+| `authToken`         | `string`                      | Base64 encoded credentials for basic auth     | -            |
+| `clientOptions`     | `ClientOptions`               | Terminal client options                       | `{}`         |
+| `termOptions`       | `ITerminalOptions`            | Xterm.js terminal options                     | `{}`         |
+| `onConnectionOpen`  | `(event: Event) => void`      | WebSocket open callback                       | -            |
+| `onConnectionClose` | `(event: CloseEvent) => void` | WebSocket close callback                      | -            |
+| `onConnectionError` | `(event: Event) => void`      | WebSocket error callback                      | -            |
+| `onData`            | `(data: string) => void`      | Terminal data callback                        | -            |
+| `id`                | `string`                      | Terminal container element ID                 | -            |
+| `className`         | `string`                      | Terminal container CSS class                  | -            |
+| `addons`            | `TerminalAddon[]`             | Additional Xterm.js addons                    | -            |
 
 ### ClientOptions
 
@@ -122,6 +142,15 @@ This section is currently under development. More advanced features and examples
 ```tsx
 <Ttyd 
   wsUrl="ws://localhost:7681/ws"
+  tokenUrl="http://localhost:7681/token"
+  authToken={btoa('username:password')}
+/>
+```
+
+```tsx
+<Ttyd 
+  wsUrl="ws://localhost:7681/ws"
+  tokenUrl="http://localhost:7681/token"
   authToken="your-auth-token"
 />
 ```

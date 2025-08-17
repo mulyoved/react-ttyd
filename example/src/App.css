@@ -243,6 +243,17 @@
   min-width: 200px;
 }
 
+.auth-fields {
+  display: flex;
+  gap: 1rem;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+.auth-fields .form-group {
+  min-width: 150px;
+}
+
 .form-group label {
   color: #a8a8a8;
   font-size: 13px;
@@ -448,5 +459,13 @@
   .terminal-window {
     height: 300px;
     min-height: 300px;
+  }
+  
+  .auth-fields {
+    flex-direction: column;
+  }
+  
+  .auth-fields .form-group {
+    width: 100%;
   }
 }

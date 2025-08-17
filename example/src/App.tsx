@@ -5,19 +5,28 @@ import 'react-ttyd/dist/index.css';
 import './App.css';
 
 function App() {
+    const [connectionKey, setConnectionKey] = useState(0);
     const [options, setOptions] = useState({
         wsUrl: 'ws://localhost:7681/ws',
         rendererType: 'webgl' as RendererType,
         fontSize: 13,
+        username: '',
+        password: '',
+        useTokenEndpoint: false,
     });
     const [formState, setFormState] = useState({
         wsUrl: 'ws://localhost:7681/ws',
         rendererType: 'webgl' as RendererType,
         fontSize: 13,
+        username: '',
+        password: '',
+        useTokenEndpoint: false,
     });
 
     const handleApplySettings = () => {
         setOptions(formState);
+        // Force reconnection by changing the key
+        setConnectionKey(prev => prev + 1);
     };
 
     return (
@@ -48,6 +57,8 @@ function App() {
                     <pre className="ttyd-commands">
                         <code>$ brew install ttyd</code>
                         <code>$ ttyd --writable bash</code>
+                        <code>$ # With basic auth:</code>
+                        <code>$ ttyd --writable --credential testuser:testpass bash</code>
                         <code className="output">lws_socket_bind: source ads 127.0.0.1</code>
                         <code className="output">Listening on port: 7681</code>
                     </pre>
@@ -96,6 +107,38 @@ function App() {
                                 }
                             />
                         </div>
+                        <div className="auth-fields">
+                            <div className="form-group">
+                                <label htmlFor="username">Username (for auth):</label>
+                                <input
+                                    id="username"
+                                    type="text"
+                                    value={formState.username}
+                                    onChange={(e) => setFormState(prev => ({ ...prev, username: e.target.value }))}
+                                    placeholder="Optional"
+                                />
+                            </div>
+                            <div className="form-group">
+                                <label htmlFor="password">Password (for auth):</label>
+                                <input
+                                    id="password"
+                                    type="password"
+                                    value={formState.password}
+                                    onChange={(e) => setFormState(prev => ({ ...prev, password: e.target.value }))}
+                                    placeholder="Optional"
+                                />
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={formState.useTokenEndpoint}
+                                    onChange={(e) => setFormState(prev => ({ ...prev, useTokenEndpoint: e.target.checked }))}
+                                />
+                                {' '}Use /token endpoint
+                            </label>
+                        </div>
                         <button className="apply-btn" onClick={handleApplySettings}>
                             Connect
                         </button>
@@ -113,7 +156,10 @@ function App() {
                 </div>
                 <div className="terminal-body">
                     <Ttyd
+                        key={connectionKey}
                         wsUrl={options.wsUrl}
+                        tokenUrl={options.useTokenEndpoint ? 'http://localhost:7681/token' : undefined}
+                        authToken={options.username && options.password ? btoa(`${options.username}:${options.password}`) : undefined}
                         clientOptions={{
                             rendererType: options.rendererType,
                         }}
@@ -129,6 +175,7 @@ function App() {
                     <pre className="example-code">
                         <code>{`import { Ttyd } from 'react-ttyd';
 
+// Basic usage
 <Ttyd
     wsUrl="ws://localhost:7681/ws"
     clientOptions={{
@@ -136,6 +183,15 @@ function App() {
     }}
     termOptions={{
         fontSize: 14,
+    }}
+/>
+
+// With basic authentication
+<Ttyd
+    wsUrl="ws://localhost:7681/ws"
+    authToken={btoa('username:password')}
+    clientOptions={{
+        rendererType: 'webgl',
     }}
 />`}</code>
                     </pre>

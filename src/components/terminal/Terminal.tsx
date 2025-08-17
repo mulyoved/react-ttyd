@@ -36,6 +36,7 @@ export const Terminal: React.FC<TerminalProps> = (props) => {
         const options = {
             wsUrl: props.wsUrl,
             tokenUrl: props.tokenUrl,
+            authToken: props.authToken,
             flowControl: props.flowControl,
             clientOptions: props.clientOptions,
             termOptions: props.termOptions,
