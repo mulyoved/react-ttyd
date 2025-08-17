@@ -1,13 +1,14 @@
 .app-container {
-  min-height: 100vh;
+  height: 100vh;
   background: #1a1a1a;
-  padding: 20px;
+  padding: 0;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  overflow-x: hidden;
+  justify-content: flex-start;
+  overflow: hidden;
+  position: relative;
 }
 
 .github-banner {
@@ -46,16 +47,39 @@
 .content-wrapper {
   width: 100%;
   max-width: 1000px;
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
   align-items: center;
-  margin: 0 auto;
+  padding: 2rem 1rem;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.content-wrapper::-webkit-scrollbar {
+  width: 8px;
+}
+
+.content-wrapper::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.content-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.content-wrapper::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .terminal-window {
   width: 100%;
   max-width: 1000px;
+  min-height: 400px;
   height: 500px;
   background: #000;
   border-radius: 8px;
@@ -63,6 +87,7 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .terminal-header {
@@ -412,8 +437,8 @@
 }
 
 @media (max-width: 480px) {
-  .app-container {
-    padding: 10px;
+  .content-wrapper {
+    padding: 1rem 0.5rem;
   }
 
   .settings-panel h3 {
@@ -422,5 +447,6 @@
 
   .terminal-window {
     height: 300px;
+    min-height: 300px;
   }
 }

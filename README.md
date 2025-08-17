@@ -56,6 +56,9 @@ function App() {
       clientOptions={{
         rendererType: 'webgl'
       }}
+      termOptions={{
+        fontSize: 14,
+      }}
     />
   );
 }
@@ -112,20 +115,9 @@ Common options:
 />
 ```
 
-## Advanced Usage
+## Advanced Usage 🚧 Under Development
 
-### Authentication
-
-#### Basic Authentication
-
-```tsx
-<Ttyd 
-  wsUrl="ws://localhost:7681/ws"
-  authToken={btoa('username:password')}
-/>
-```
-
-#### Token Authentication
+This section is currently under development. More advanced features and examples will be added soon!
 
 ```tsx
 <Ttyd 
