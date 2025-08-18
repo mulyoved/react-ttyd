@@ -237,8 +237,14 @@ export class Xterm {
   }
 
   public writeData(data: string | Uint8Array) {
-    const { terminal, textEncoder } = this;
+    const { terminal, textEncoder, textDecoder } = this;
     const { limit, highWater, lowWater } = this.options.flowControl;
+
+    // Call onData callback with the decoded string
+    if (this.options.onData) {
+      const dataStr = typeof data === 'string' ? data : textDecoder.decode(data);
+      this.options.onData(dataStr);
+    }
 
     this.written += data.length;
     if (this.written > limit) {
@@ -298,12 +304,16 @@ export class Xterm {
       addEventListener(socket, "close", this.onSocketClose as EventListener)
     );
     this.register(
-      addEventListener(socket, "error", () => (this.doReconnect = false))
+      addEventListener(socket, "error", (event) => {
+        this.doReconnect = false;
+        this.options.onConnectionError?.(event);
+      })
     );
   }
 
-  private onSocketOpen = () => {
+  private onSocketOpen = (event: Event) => {
     console.log("[ttyd] websocket connection opened");
+    this.options.onConnectionOpen?.(event);
 
     const { textEncoder, terminal, overlayAddon } = this;
     if (terminal === undefined) {
@@ -333,6 +343,7 @@ export class Xterm {
 
   private onSocketClose = (event: CloseEvent) => {
     console.log(`[ttyd] websocket connection closed with code: ${event.code}`);
+    this.options.onConnectionClose?.(event);
 
     const { refreshToken, connect, doReconnect, overlayAddon } = this;
     overlayAddon.show("Connection Closed");

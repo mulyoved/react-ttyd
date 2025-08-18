@@ -40,6 +40,10 @@ export const Terminal: React.FC<TerminalProps> = (props) => {
             flowControl: props.flowControl,
             clientOptions: props.clientOptions,
             termOptions: props.termOptions,
+            onConnectionOpen: props.onConnectionOpen,
+            onConnectionClose: props.onConnectionClose,
+            onConnectionError: props.onConnectionError,
+            onData: props.onData,
         };
         const xterm = new Xterm(options, () => setShowModal(true));
         xtermRef.current = xterm;
