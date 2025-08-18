@@ -11,6 +11,10 @@ export interface TtydProps {
   clientOptions?: Partial<ClientOptions>;
   termOptions?: Partial<ITerminalOptions>;
   flowControl?: Partial<FlowControl>;
+  onConnectionOpen?: (event: Event) => void;
+  onConnectionClose?: (event: CloseEvent) => void;
+  onConnectionError?: (event: Event) => void;
+  onData?: (data: string) => void;
 }
 
 const defaultClientOptions: ClientOptions = {
@@ -67,6 +71,10 @@ const TtydComponent: React.FC<TtydProps> = ({
   clientOptions,
   termOptions,
   flowControl,
+  onConnectionOpen,
+  onConnectionClose,
+  onConnectionError,
+  onData,
 }) => {
   const options = useMemo(
     () => ({
@@ -76,8 +84,12 @@ const TtydComponent: React.FC<TtydProps> = ({
       clientOptions: { ...defaultClientOptions, ...clientOptions },
       termOptions: { ...defaultTermOptions, ...termOptions },
       flowControl: { ...defaultFlowControl, ...flowControl },
+      onConnectionOpen,
+      onConnectionClose,
+      onConnectionError,
+      onData,
     }),
-    [wsUrl, tokenUrl, authToken, clientOptions, termOptions, flowControl],
+    [wsUrl, tokenUrl, authToken, clientOptions, termOptions, flowControl, onConnectionOpen, onConnectionClose, onConnectionError, onData],
   );
 
 

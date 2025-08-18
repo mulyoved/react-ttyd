@@ -29,6 +29,10 @@ export interface XtermOptions {
   flowControl: FlowControl;
   clientOptions: ClientOptions;
   termOptions: ITerminalOptions;
+  onConnectionOpen?: (event: Event) => void;
+  onConnectionClose?: (event: CloseEvent) => void;
+  onConnectionError?: (event: Event) => void;
+  onData?: (data: string) => void;
 }
 
 export type { ITerminalOptions, ITheme };

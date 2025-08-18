@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Ttyd } from 'react-ttyd';
 import type { RendererType } from 'react-ttyd';
 import 'react-ttyd/dist/index.css';
@@ -6,6 +6,8 @@ import './App.css';
 
 function App() {
     const [connectionKey, setConnectionKey] = useState(0);
+    const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
+    const [outputLog, setOutputLog] = useState<string[]>([]);
     const [options, setOptions] = useState({
         wsUrl: 'ws://localhost:7681/ws',
         rendererType: 'webgl' as RendererType,
@@ -26,6 +28,31 @@ function App() {
         // Force reconnection by changing the key
         setConnectionKey(prev => prev + 1);
     };
+
+    // Event callbacks
+    const handleConnectionOpen = useCallback((event: Event) => {
+        console.log('Connected to ttyd server', event);
+        setConnectionStatus('connected');
+    }, []);
+
+    const handleConnectionClose = useCallback((event: CloseEvent) => {
+        console.log('Disconnected from ttyd server', event);
+        setConnectionStatus('disconnected');
+    }, []);
+
+    const handleConnectionError = useCallback((event: Event) => {
+        console.error('Connection error:', event);
+        setConnectionStatus('error');
+    }, []);
+
+    const handleData = useCallback((data: string) => {
+        console.log('Terminal output:', data);
+        setOutputLog(prev => {
+            const newLog = [...prev, data];
+            // Keep only the last 10 entries
+            return newLog.slice(-10);
+        });
+    }, []);
 
     return (
         <div className="app-container">
@@ -140,7 +167,17 @@ function App() {
                         <button className="control-btn minimize" aria-label="Minimize"></button>
                         <button className="control-btn maximize" aria-label="Maximize"></button>
                     </div>
-                    <div className="terminal-title">Terminal</div>
+                    <div className="terminal-title">
+                        Terminal
+                        <span className="connection-status" style={{
+                            marginLeft: '10px',
+                            fontSize: '12px',
+                            color: connectionStatus === 'connected' ? '#4caf50' : 
+                                   connectionStatus === 'error' ? '#f44336' : '#9e9e9e'
+                        }}>
+                            ({connectionStatus})
+                        </span>
+                    </div>
                 </div>
                 <div className="terminal-body">
                     <Ttyd
@@ -153,10 +190,33 @@ function App() {
                         termOptions={{
                             fontSize: options.fontSize,
                         }}
+                        onConnectionOpen={handleConnectionOpen}
+                        onConnectionClose={handleConnectionClose}
+                        onConnectionError={handleConnectionError}
+                        onData={handleData}
                     />
                 </div>
             </div>
             <div className="example-window">
+                <div className="example-section" style={{ paddingBottom: '20px', marginBottom: '20px' }}>
+                    <h4>Terminal Output Log (Last 10):</h4>
+                    <pre className="example-code" style={{ 
+                        maxHeight: '150px', 
+                        overflowY: 'auto'
+                    }}>
+                        <code>
+                            {outputLog.length === 0 ? (
+                                <span style={{ opacity: 0.5 }}>No output yet...</span>
+                            ) : (
+                                outputLog.map((line, index) => (
+                                    <div key={index} style={{ wordBreak: 'break-all' }}>
+                                        {line}
+                                    </div>
+                                ))
+                            )}
+                        </code>
+                    </pre>
+                </div>
                 <div className="example-section">
                     <h4>Example Code:</h4>
                     <pre className="example-code">
@@ -179,6 +239,23 @@ function App() {
     authToken={btoa('testuser:testpw')}
     clientOptions={{
         rendererType: 'webgl',
+    }}
+/>
+
+// With event callbacks
+<Ttyd
+    wsUrl="ws://localhost:7681/ws"
+    onConnectionOpen={(event) => {
+        console.log('Connected to ttyd server');
+    }}
+    onConnectionClose={(event) => {
+        console.log('Disconnected from ttyd server');
+    }}
+    onConnectionError={(event) => {
+        console.error('Connection error:', event);
+    }}
+    onData={(data) => {
+        console.log('Terminal output:', data);
     }}
 />`}</code>
                     </pre>
