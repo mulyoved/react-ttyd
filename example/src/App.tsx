@@ -12,7 +12,6 @@ function App() {
         fontSize: 13,
         username: '',
         password: '',
-        useTokenEndpoint: false,
     });
     const [formState, setFormState] = useState({
         wsUrl: 'ws://localhost:7681/ws',
@@ -20,7 +19,6 @@ function App() {
         fontSize: 13,
         username: '',
         password: '',
-        useTokenEndpoint: false,
     });
 
     const handleApplySettings = () => {
@@ -129,16 +127,6 @@ function App() {
                                 />
                             </div>
                         </div>
-                        <div className="form-group">
-                            <label>
-                                <input
-                                    type="checkbox"
-                                    checked={formState.useTokenEndpoint}
-                                    onChange={(e) => setFormState(prev => ({ ...prev, useTokenEndpoint: e.target.checked }))}
-                                />
-                                {' '}Use /token endpoint
-                            </label>
-                        </div>
                         <button className="apply-btn" onClick={handleApplySettings}>
                             Connect
                         </button>
@@ -158,7 +146,6 @@ function App() {
                     <Ttyd
                         key={connectionKey}
                         wsUrl={options.wsUrl}
-                        tokenUrl={options.useTokenEndpoint ? 'http://localhost:7681/token' : undefined}
                         authToken={options.username && options.password ? btoa(`${options.username}:${options.password}`) : undefined}
                         clientOptions={{
                             rendererType: options.rendererType,
