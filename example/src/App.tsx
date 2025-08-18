@@ -7,7 +7,7 @@ import './App.css';
 function App() {
     const [connectionKey, setConnectionKey] = useState(0);
     const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
-    const [lastOutput, setLastOutput] = useState<string>('');
+    const [outputLog, setOutputLog] = useState<string[]>([]);
     const [options, setOptions] = useState({
         wsUrl: 'ws://localhost:7681/ws',
         rendererType: 'webgl' as RendererType,
@@ -47,7 +47,11 @@ function App() {
 
     const handleData = useCallback((data: string) => {
         console.log('Terminal output:', data);
-        setLastOutput(data);
+        setOutputLog(prev => {
+            const newLog = [...prev, data];
+            // Keep only the last 10 entries
+            return newLog.slice(-10);
+        });
     }, []);
 
     return (
@@ -194,18 +198,25 @@ function App() {
                 </div>
             </div>
             <div className="example-window">
-                {lastOutput && (
-                    <div style={{ 
-                        padding: '10px', 
-                        backgroundColor: '#f5f5f5', 
-                        borderRadius: '4px',
-                        marginBottom: '10px',
-                        fontSize: '12px',
-                        fontFamily: 'monospace'
+                <div className="example-section" style={{ paddingBottom: '20px', marginBottom: '20px' }}>
+                    <h4>Terminal Output Log (Last 10):</h4>
+                    <pre className="example-code" style={{ 
+                        maxHeight: '150px', 
+                        overflowY: 'auto'
                     }}>
-                        <strong>Last output:</strong> {lastOutput.substring(0, 50)}{lastOutput.length > 50 ? '...' : ''}
-                    </div>
-                )}
+                        <code>
+                            {outputLog.length === 0 ? (
+                                <span style={{ opacity: 0.5 }}>No output yet...</span>
+                            ) : (
+                                outputLog.map((line, index) => (
+                                    <div key={index} style={{ wordBreak: 'break-all' }}>
+                                        {line}
+                                    </div>
+                                ))
+                            )}
+                        </code>
+                    </pre>
+                </div>
                 <div className="example-section">
                     <h4>Example Code:</h4>
                     <pre className="example-code">
@@ -225,7 +236,7 @@ function App() {
 // With basic authentication
 <Ttyd
     wsUrl="ws://localhost:7681/ws"
-    authToken={btoa('testuser:testpass')}
+    authToken={btoa('testuser:testpw')}
     clientOptions={{
         rendererType: 'webgl',
     }}
