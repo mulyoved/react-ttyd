@@ -176,7 +176,7 @@ function App() {
 // With basic authentication
 <Ttyd
     wsUrl="ws://localhost:7681/ws"
-    authToken={btoa('username:password')}
+    authToken={btoa('testuser:testpass')}
     clientOptions={{
         rendererType: 'webgl',
     }}

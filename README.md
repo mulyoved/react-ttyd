@@ -142,15 +142,13 @@ This section is currently under development. More advanced features and examples
 ```tsx
 <Ttyd 
   wsUrl="ws://localhost:7681/ws"
-  tokenUrl="http://localhost:7681/token"
-  authToken={btoa('username:password')}
+  authToken={btoa('testuser:testpass')}
 />
 ```
 
 ```tsx
 <Ttyd 
   wsUrl="ws://localhost:7681/ws"
-  tokenUrl="http://localhost:7681/token"
   authToken="your-auth-token"
 />
 ```
