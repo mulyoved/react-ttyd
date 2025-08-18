@@ -1,6 +1,6 @@
 {
   "name": "react-ttyd",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A React component for integrating ttyd web terminal with Xterm.js, supporting WebGL rendering and WebSocket connections",
   "type": "module",
   "main": "dist/index.js",

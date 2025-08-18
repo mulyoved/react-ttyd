@@ -25,6 +25,7 @@ export interface FlowControl {
 export interface XtermOptions {
   wsUrl: string;
   tokenUrl?: string;
+  authToken?: string;
   flowControl: FlowControl;
   clientOptions: ClientOptions;
   termOptions: ITerminalOptions;

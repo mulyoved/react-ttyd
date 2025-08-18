@@ -5,6 +5,7 @@ import type { ITerminalOptions, ITheme, ClientOptions, FlowControl } from './typ
 export interface TtydProps {
   wsUrl: string;
   tokenUrl?: string;
+  authToken?: string;
   className?: string;
   style?: React.CSSProperties;
   clientOptions?: Partial<ClientOptions>;
@@ -60,6 +61,7 @@ const defaultFlowControl: FlowControl = {
 const TtydComponent: React.FC<TtydProps> = ({
   wsUrl,
   tokenUrl,
+  authToken,
   className,
   style,
   clientOptions,
@@ -70,11 +72,12 @@ const TtydComponent: React.FC<TtydProps> = ({
     () => ({
       wsUrl: wsUrl,
       tokenUrl: tokenUrl,
+      authToken: authToken,
       clientOptions: { ...defaultClientOptions, ...clientOptions },
       termOptions: { ...defaultTermOptions, ...termOptions },
       flowControl: { ...defaultFlowControl, ...flowControl },
     }),
-    [wsUrl, tokenUrl, clientOptions, termOptions, flowControl],
+    [wsUrl, tokenUrl, authToken, clientOptions, termOptions, flowControl],
   );
 
 
@@ -88,6 +91,7 @@ const TtydComponent: React.FC<TtydProps> = ({
 export const Ttyd = React.memo(TtydComponent, (prevProps, nextProps) => {
   return prevProps.wsUrl === nextProps.wsUrl &&
     prevProps.tokenUrl === nextProps.tokenUrl &&
+    prevProps.authToken === nextProps.authToken &&
     JSON.stringify(prevProps.clientOptions) === JSON.stringify(nextProps.clientOptions) &&
     JSON.stringify(prevProps.termOptions) === JSON.stringify(nextProps.termOptions) &&
     JSON.stringify(prevProps.flowControl) === JSON.stringify(nextProps.flowControl)

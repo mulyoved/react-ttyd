@@ -72,6 +72,7 @@ export class Xterm {
 
   private socket?: WebSocket;
   private token: string = "";
+  private authToken?: string;
   private opened = false;
   private title?: string;
   private titleFixed?: string;
@@ -85,6 +86,7 @@ export class Xterm {
     this.resizeOverlay = !options.clientOptions.disableResizeOverlay;
     this.titleFixed = options.clientOptions.titleFixed;
     this.closeOnDisconnect = options.clientOptions.closeOnDisconnect;
+    this.authToken = options.authToken;
   }
 
   dispose() {
@@ -109,7 +111,19 @@ export class Xterm {
   public async refreshToken() {
     if (!this.options.tokenUrl) return;
     try {
-      const resp = await fetch(this.options.tokenUrl);
+      let tokenUrl = this.options.tokenUrl;
+      
+      // If we have an authToken, append it to the URL
+      if (this.authToken) {
+        const separator = tokenUrl.includes('?') ? '&' : '?';
+        // URL encode the auth token to handle special characters
+        const encodedToken = encodeURIComponent(this.authToken);
+        tokenUrl = `${tokenUrl}${separator}authorization=${encodedToken}`;
+      }
+      
+      const resp = await fetch(tokenUrl, {
+        method: 'POST',
+      });
       if (resp.ok) {
         const json = await resp.json();
         this.token = json.token;
@@ -262,7 +276,17 @@ export class Xterm {
   };
 
   public connect() {
-    this.socket = new WebSocket(this.options.wsUrl, ["tty"]);
+    // If we have an auth token or token, append it to the URL
+    let wsUrl = this.options.wsUrl;
+    const authToken = this.authToken || this.token;
+    if (authToken) {
+      const separator = wsUrl.includes('?') ? '&' : '?';
+      // URL encode the auth token to handle special characters
+      const encodedToken = encodeURIComponent(authToken);
+      wsUrl = `${wsUrl}${separator}authorization=${encodedToken}`;
+    }
+    
+    this.socket = new WebSocket(wsUrl, ["tty"]);
     const { socket } = this;
 
     socket.binaryType = "arraybuffer";
@@ -288,7 +312,7 @@ export class Xterm {
     }
 
     const msg = JSON.stringify({
-      AuthToken: this.token,
+      AuthToken: this.authToken || this.token,
       columns: terminal.cols,
       rows: terminal.rows,
     });
