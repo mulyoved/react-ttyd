@@ -56,7 +56,7 @@ function App() {
                         <code>$ brew install ttyd</code>
                         <code>$ ttyd --writable bash</code>
                         <code>$ # With basic auth:</code>
-                        <code>$ ttyd --writable --credential testuser:testpass bash</code>
+                        <code>$ ttyd --writable --credential testuser:testpw bash</code>
                         <code className="output">lws_socket_bind: source ads 127.0.0.1</code>
                         <code className="output">Listening on port: 7681</code>
                     </pre>
@@ -176,7 +176,7 @@ function App() {
 // With basic authentication
 <Ttyd
     wsUrl="ws://localhost:7681/ws"
-    authToken={btoa('testuser:testpass')}
+    authToken={btoa('testuser:testpw')}
     clientOptions={{
         rendererType: 'webgl',
     }}

@@ -70,13 +70,13 @@ If your ttyd server requires authentication, you can provide credentials:
 
 ```bash
 # Start ttyd with basic auth
-ttyd --writable --credential testuser:testpass bash
+ttyd --writable --credential testuser:testpw bash
 ```
 
 ```tsx
 <Ttyd 
   wsUrl="ws://localhost:7681/ws"
-  authToken={btoa('testuser:testpass')}
+  authToken={btoa('testuser:testpw')}
   clientOptions={{
     rendererType: 'webgl'
   }}
@@ -142,7 +142,7 @@ This section is currently under development. More advanced features and examples
 ```tsx
 <Ttyd 
   wsUrl="ws://localhost:7681/ws"
-  authToken={btoa('testuser:testpass')}
+  authToken={btoa('testuser:testpw')}
 />
 ```
 
