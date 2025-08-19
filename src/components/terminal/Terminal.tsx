@@ -31,7 +31,6 @@ export const Terminal: React.FC<TerminalProps> = (props) => {
     }
 
     useEffect(() => {
-        console.log('Terminal rendered', props);
         if (!containerRef.current) return;
 
         const options = {

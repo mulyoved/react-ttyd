@@ -35,9 +35,23 @@ function App() {
                     <span>Star on GitHub</span>
                 </a>
             </div>
-            <div className="settings-window">
+            <div className="content-wrapper">
+                <div className="settings-window">
                 <div className="settings-panel">
-                    <h3>Terminal Settings</h3>
+                    <h3>
+                        <a href="https://github.com/tantara/react-ttyd" target="_blank" rel="noopener noreferrer">react-ttyd</a>: 
+                        React component for <a href="https://github.com/tsl0922/ttyd" target="_blank" rel="noopener noreferrer">ttyd</a> web terminal
+                    </h3>
+                    <p className="start-ttyd">
+                        Start ttyd server: <a href="https://github.com/tsl0922/ttyd" target="_blank" rel="noopener noreferrer">ttyd on GitHub</a>
+                    </p>
+                    <pre className="ttyd-commands">
+                        <code>$ brew install ttyd</code>
+                        <code>$ ttyd --writable bash</code>
+                        <code className="output">lws_socket_bind: source ads 127.0.0.1</code>
+                        <code className="output">Listening on port: 7681</code>
+                    </pre>
+                    <h4 className="connect-heading">Connect to ttyd server:</h4>
                     <div className="settings-form">
                         <div className="form-group">
                             <label htmlFor="wsUrl">TTYD WebSocket URL:</label>
@@ -77,13 +91,13 @@ function App() {
                                 onChange={(e) =>
                                     setFormState(prev => ({
                                         ...prev,
-                                        fontSize: parseInt(e.target.value) || 13,
+                                        fontSize: parseInt(e.target.value),
                                     }))
                                 }
                             />
                         </div>
                         <button className="apply-btn" onClick={handleApplySettings}>
-                            Apply Settings
+                            Connect
                         </button>
                     </div>
                 </div>
@@ -108,6 +122,25 @@ function App() {
                         }}
                     />
                 </div>
+            </div>
+            <div className="example-window">
+                <div className="example-section">
+                    <h4>Example Code:</h4>
+                    <pre className="example-code">
+                        <code>{`import { Ttyd } from 'react-ttyd';
+
+<Ttyd
+    wsUrl="ws://localhost:7681/ws"
+    clientOptions={{
+        rendererType: 'webgl',
+    }}
+    termOptions={{
+        fontSize: 14,
+    }}
+/>`}</code>
+                    </pre>
+                </div>
+            </div>
             </div>
         </div>
     );
