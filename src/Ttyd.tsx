@@ -77,7 +77,6 @@ const TtydComponent: React.FC<TtydProps> = ({
     [wsUrl, tokenUrl, clientOptions, termOptions, flowControl],
   );
 
-  console.log('Ttyd rendered');
 
   return (
     <div className={className} style={{ width: '100%', height: '100%', ...style }}>

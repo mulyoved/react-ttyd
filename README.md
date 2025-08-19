@@ -220,6 +220,46 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Xterm.js](https://xtermjs.org/) - Terminal for the web
 - [@homebridge/plugin-ui-utils](https://github.com/homebridge/homebridge-config-ui-x) - Inspiration for the terminal implementation
 
+## TODO
+
+The following features from the original ttyd/html implementation are not yet ported to react-ttyd:
+
+### Core Features
+- [ ] Token-based authentication (`tokenUrl` and `refreshToken()`)
+- [ ] Command protocol support (SET_PREFERENCES command)
+- [ ] URL query parameter parsing for options
+- [ ] Flow control (pause/resume commands)
+- [ ] Reconnection mechanism with overlay
+- [ ] Window unload warning when terminal is active
+- [ ] Title management (titleFixed option)
+- [ ] `closeOnDisconnect` behavior
+
+### File Transfer & Advanced Features
+- [ ] Zmodem support (`enableZmodem` option)
+- [ ] Trzsz support (`enableTrzsz` option) 
+- [ ] Sixel graphics support (`enableSixel` option)
+- [ ] Modal for file uploads
+- [ ] `sendFile()` functionality
+- [ ] Drag and drop file support
+
+### UI/UX Features
+- [ ] Resize overlay (`disableResizeOverlay` option)
+- [ ] Leave alert (`disableLeaveAlert` option)
+- [ ] Connection status overlay
+- [ ] Reconnection overlay with "Press Enter to Reconnect"
+- [ ] Selection copy overlay (scissors icon)
+
+### Terminal Management
+- [ ] Global `window.term` object with `fit()` method
+- [ ] Dispose pattern for proper cleanup
+- [ ] Binary data handling
+- [ ] Proper WebSocket command protocol
+
+### Configuration
+- [ ] Server-side preference updates
+- [ ] Windows-specific options (`isWindows`)
+- [ ] trzszDragInitTimeout option
+
 ## Related Projects
 
 - [ttyd](https://github.com/tsl0922/ttyd) - The backend terminal server
