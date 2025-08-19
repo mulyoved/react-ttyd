@@ -1,0 +1,13 @@
+src/
+tsconfig.json
+rollup.config.js
+.gitignore
+.npmignore
+*.log
+.DS_Store
+coverage/
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
