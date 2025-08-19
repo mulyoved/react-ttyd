@@ -1,25 +1,25 @@
-import type { ITerminalAddon, Terminal } from '@xterm/xterm';
+import type { ITerminalAddon, Terminal } from "@xterm/xterm";
 
 export class OverlayAddon implements ITerminalAddon {
-    private overlay?: HTMLDivElement;
-    private timeout?: number;
-    private terminal?: Terminal;
+  private overlay?: HTMLDivElement;
+  private timeout?: number;
+  private terminal?: Terminal;
 
-    activate(terminal: Terminal): void {
-        this.terminal = terminal;
-    }
+  activate(terminal: Terminal): void {
+    this.terminal = terminal;
+  }
 
-    dispose(): void {
-        this.hide();
-    }
+  dispose(): void {
+    this.hide();
+  }
 
-    show(text: string, duration?: number): void {
-        if (!this.terminal) return;
+  show(text: string, duration?: number): void {
+    if (!this.terminal) return;
 
-        this.hide();
+    this.hide();
 
-        this.overlay = document.createElement('div');
-        this.overlay.style.cssText = `
+    this.overlay = document.createElement("div");
+    this.overlay.style.cssText = `
             position: absolute;
             top: 50%;
             left: 50%;
@@ -32,28 +32,28 @@ export class OverlayAddon implements ITerminalAddon {
             z-index: 1000;
             pointer-events: none;
         `;
-        this.overlay.textContent = text;
+    this.overlay.textContent = text;
 
-        const terminalElement = (this.terminal as any).element;
-        if (terminalElement && terminalElement.parentElement) {
-            terminalElement.parentElement.style.position = 'relative';
-            terminalElement.parentElement.appendChild(this.overlay);
-        }
-
-        if (duration) {
-            this.timeout = window.setTimeout(() => this.hide(), duration);
-        }
+    const terminalElement = (this.terminal as any).element;
+    if (terminalElement && terminalElement.parentElement) {
+      terminalElement.parentElement.style.position = "relative";
+      terminalElement.parentElement.appendChild(this.overlay);
     }
 
-    hide(): void {
-        if (this.timeout) {
-            clearTimeout(this.timeout);
-            this.timeout = undefined;
-        }
-
-        if (this.overlay) {
-            this.overlay.remove();
-            this.overlay = undefined;
-        }
+    if (duration) {
+      this.timeout = window.setTimeout(() => this.hide(), duration);
     }
+  }
+
+  hide(): void {
+    if (this.timeout) {
+      clearTimeout(this.timeout);
+      this.timeout = undefined;
+    }
+
+    if (this.overlay) {
+      this.overlay.remove();
+      this.overlay = undefined;
+    }
+  }
 }

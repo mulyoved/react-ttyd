@@ -1,9 +1,9 @@
-import React from 'react';
-import { Terminal } from './components/terminal/Terminal';
+import React, { memo, useMemo } from 'react';
+import Terminal from './components/terminal/Terminal';
 import type { ITerminalOptions, ITheme, ClientOptions, FlowControl } from './types';
 
 export interface TtydProps {
-  wsUrl?: string;
+  wsUrl: string;
   tokenUrl?: string;
   className?: string;
   style?: React.CSSProperties;
@@ -57,28 +57,25 @@ const defaultFlowControl: FlowControl = {
   lowWater: 4,
 };
 
-export const Ttyd: React.FC<TtydProps> = ({
+const TtydComponent: React.FC<TtydProps> = ({
   wsUrl,
   tokenUrl,
   className,
   style,
-  clientOptions = {},
-  termOptions = {},
-  flowControl = {},
+  clientOptions,
+  termOptions,
+  flowControl,
 }) => {
-  // Build WebSocket URL if not provided
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const path = window.location.pathname.replace(/[/]+$/, '');
-  const defaultWsUrl = [protocol, '//', window.location.host, path, '/ws', window.location.search].join('');
-  const defaultTokenUrl = [window.location.protocol, '//', window.location.host, path, '/token'].join('');
-
-  const options = {
-    wsUrl: wsUrl || defaultWsUrl,
-    tokenUrl: tokenUrl || defaultTokenUrl,
-    clientOptions: { ...defaultClientOptions, ...clientOptions },
-    termOptions: { ...defaultTermOptions, ...termOptions },
-    flowControl: { ...defaultFlowControl, ...flowControl },
-  };
+  const options = useMemo(
+    () => ({
+      wsUrl: wsUrl,
+      tokenUrl: tokenUrl,
+      clientOptions: { ...defaultClientOptions, ...clientOptions },
+      termOptions: { ...defaultTermOptions, ...termOptions },
+      flowControl: { ...defaultFlowControl, ...flowControl },
+    }),
+    [wsUrl, tokenUrl, clientOptions, termOptions, flowControl],
+  );
 
   return (
     <div className={className} style={{ width: '100%', height: '100%', ...style }}>
@@ -86,3 +83,7 @@ export const Ttyd: React.FC<TtydProps> = ({
     </div>
   );
 };
+
+export const Ttyd = memo(TtydComponent);
+
+Ttyd.displayName = 'Ttyd';
