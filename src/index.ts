@@ -1,3 +1,3 @@
 export { Ttyd } from './Ttyd';
 export type { TtydProps } from './Ttyd';
-export type { ClientOptions, FlowControl, ITerminalOptions, ITheme } from './types';
+export type { ClientOptions, FlowControl, ITerminalOptions, ITheme, RendererType } from './types';

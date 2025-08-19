@@ -1,7 +1,7 @@
 {
   "name": "react-ttyd",
   "version": "1.0.0",
-  "description": "React component for ttyd terminal",
+  "description": "A React component for integrating ttyd web terminal with Xterm.js, supporting WebGL rendering and WebSocket connections",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -22,9 +22,22 @@
     "ttyd",
     "terminal",
     "xterm",
-    "websocket"
+    "xterm.js",
+    "websocket",
+    "web-terminal",
+    "terminal-emulator",
+    "webgl",
+    "typescript"
   ],
-  "author": "",
+  "author": "tantara",
+  "homepage": "https://github.com/tantara/react-ttyd#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tantara/react-ttyd.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tantara/react-ttyd/issues"
+  },
   "license": "MIT",
   "peerDependencies": {
     "react": ">=16.8.0",

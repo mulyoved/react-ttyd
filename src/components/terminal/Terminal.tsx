@@ -9,7 +9,7 @@ interface TerminalProps extends XtermOptions {
     id?: string;
 }
 
-const Terminal: React.FC<TerminalProps> = (props) => {
+export const Terminal: React.FC<TerminalProps> = (props) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Xterm | null>(null);
     const [showModal, setShowModal] = useState(false);
@@ -22,24 +22,29 @@ const Terminal: React.FC<TerminalProps> = (props) => {
         }
     };
 
-    const memoizedOptions = useMemo(() => {
-        return {
+    if (xtermRef && xtermRef.current) {
+        xtermRef.current.dispose();
+        xtermRef.current = null;
+        if (containerRef.current) {
+            containerRef.current.innerHTML = '';
+        }
+    }
+
+    useEffect(() => {
+        console.log('Terminal rendered', props);
+        if (!containerRef.current) return;
+
+        const options = {
             wsUrl: props.wsUrl,
             tokenUrl: props.tokenUrl,
             flowControl: props.flowControl,
             clientOptions: props.clientOptions,
             termOptions: props.termOptions,
         };
-    }, [props.wsUrl, props.tokenUrl, JSON.stringify(props.flowControl), JSON.stringify(props.clientOptions), JSON.stringify(props.termOptions)]);
-
-    useEffect(() => {
-        if (!containerRef.current) return;
-
-        const xterm = new Xterm(memoizedOptions, () => setShowModal(true));
+        const xterm = new Xterm(options, () => setShowModal(true));
         xtermRef.current = xterm;
 
         const init = async () => {
-            await new Promise(resolve => setTimeout(resolve, 1000));
             await xterm.refreshToken();
             xterm.open(containerRef.current!);
             xterm.connect();
@@ -51,7 +56,7 @@ const Terminal: React.FC<TerminalProps> = (props) => {
             xterm.dispose();
             xtermRef.current = null;
         };
-    }, [memoizedOptions]);
+    }, [props]);
 
     return (
         <div id={props.id} ref={containerRef} style={{ width: '100%', height: '100%' }}>
@@ -69,5 +74,3 @@ const Terminal: React.FC<TerminalProps> = (props) => {
         </div>
     );
 };
-
-export default React.memo(Terminal);

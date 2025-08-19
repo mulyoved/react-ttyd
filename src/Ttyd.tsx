@@ -1,5 +1,5 @@
-import React, { memo, useMemo } from 'react';
-import Terminal from './components/terminal/Terminal';
+import React, { useMemo } from 'react';
+import { Terminal } from './components/terminal/Terminal';
 import type { ITerminalOptions, ITheme, ClientOptions, FlowControl } from './types';
 
 export interface TtydProps {
@@ -77,6 +77,8 @@ const TtydComponent: React.FC<TtydProps> = ({
     [wsUrl, tokenUrl, clientOptions, termOptions, flowControl],
   );
 
+  console.log('Ttyd rendered');
+
   return (
     <div className={className} style={{ width: '100%', height: '100%', ...style }}>
       <Terminal {...options} id="terminal-container" />
@@ -84,6 +86,12 @@ const TtydComponent: React.FC<TtydProps> = ({
   );
 };
 
-export const Ttyd = memo(TtydComponent);
+export const Ttyd = React.memo(TtydComponent, (prevProps, nextProps) => {
+  return prevProps.wsUrl === nextProps.wsUrl &&
+    prevProps.tokenUrl === nextProps.tokenUrl &&
+    JSON.stringify(prevProps.clientOptions) === JSON.stringify(nextProps.clientOptions) &&
+    JSON.stringify(prevProps.termOptions) === JSON.stringify(nextProps.termOptions) &&
+    JSON.stringify(prevProps.flowControl) === JSON.stringify(nextProps.flowControl)
+});
 
 Ttyd.displayName = 'Ttyd';
