@@ -34,7 +34,7 @@ export class OverlayAddon implements ITerminalAddon {
         `;
     this.overlay.textContent = text;
 
-    const terminalElement = (this.terminal as any).element;
+    const terminalElement = (this.terminal as Terminal & { element?: HTMLElement }).element;
     if (terminalElement && terminalElement.parentElement) {
       terminalElement.parentElement.style.position = "relative";
       terminalElement.parentElement.appendChild(this.overlay);

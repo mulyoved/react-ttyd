@@ -8,7 +8,7 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import { ImageAddon } from "@xterm/addon-image";
 import { Unicode11Addon } from "@xterm/addon-unicode11";
 import { OverlayAddon } from "./addons/overlay";
-import type { ClientOptions, FlowControl, XtermOptions } from "../../../types";
+import type { ClientOptions, XtermOptions } from "../../../types";
 
 import "@xterm/xterm/css/xterm.css";
 
@@ -29,8 +29,11 @@ enum Command {
   SET_PREFERENCES = "2",
 
   // client side
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   INPUT = "0",
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   RESIZE_TERMINAL = "1",
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   PAUSE = "2",
   RESUME = "3",
 }
@@ -206,7 +209,7 @@ export class Xterm {
         if (this.terminal.getSelection() === "") return;
         try {
           document.execCommand("copy");
-        } catch (e) {
+        } catch {
           return;
         }
         this.overlayAddon?.show("✂", 200);
@@ -345,10 +348,11 @@ export class Xterm {
         this.title = textDecoder.decode(data);
         document.title = this.title;
         break;
-      case Command.SET_PREFERENCES:
+      case Command.SET_PREFERENCES: {
         const prefs = JSON.parse(textDecoder.decode(data));
         this.applyPreferences(prefs);
         break;
+      }
       default:
         console.warn(`[ttyd] unknown command: ${cmd}`);
         break;
@@ -370,11 +374,11 @@ export class Xterm {
         case "enableSixel":
         case "titleFixed":
           console.log(`[ttyd] option ${key} = ${value}`);
-          (clientOptions as any)[key] = value;
+          (clientOptions as unknown as Record<string, unknown>)[key] = value;
           break;
         default:
-          if ((terminal.options as any)[key] !== value) {
-            (terminal.options as any)[key] = value;
+          if ((terminal.options as Record<string, unknown>)[key] !== value) {
+            (terminal.options as Record<string, unknown>)[key] = value;
             console.log(`[ttyd] option ${key} = ${value}`);
           }
           break;
