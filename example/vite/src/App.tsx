@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Ttyd } from 'react-ttyd';
 import type { RendererType } from 'react-ttyd';
-import 'react-ttyd/dist/index.css';
 import './App.css';
 
 function App() {

@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { Terminal } from './components/terminal/Terminal';
+import React, { useMemo, forwardRef, useImperativeHandle, useRef } from 'react';
+import { Terminal, TerminalHandle } from './components/terminal/Terminal';
 import type { ITerminalOptions, ITheme, ClientOptions, FlowControl } from './types';
 
 export interface TtydProps {
@@ -15,6 +15,13 @@ export interface TtydProps {
   onConnectionClose?: (event: CloseEvent) => void;
   onConnectionError?: (event: Event) => void;
   onData?: (data: string) => void;
+  terminalRef?: React.RefObject<TtydHandle | null>;
+}
+
+export interface TtydHandle {
+  disconnect: () => void;
+  execute: (command: string, enter?: boolean) => void;
+  sendInput: (input: string) => void;
 }
 
 const defaultClientOptions: ClientOptions = {
@@ -62,7 +69,7 @@ const defaultFlowControl: FlowControl = {
   lowWater: 4,
 };
 
-const TtydComponent: React.FC<TtydProps> = ({
+const TtydComponent = forwardRef<TtydHandle, TtydProps>(({
   wsUrl,
   tokenUrl,
   authToken,
@@ -75,7 +82,51 @@ const TtydComponent: React.FC<TtydProps> = ({
   onConnectionClose,
   onConnectionError,
   onData,
-}) => {
+  terminalRef: userTerminalRef,
+}, ref) => {
+  const internalTerminalRef = useRef<TerminalHandle>(null);
+
+  // Use either the user-provided ref or our internal ref
+  const terminalRef = userTerminalRef || internalTerminalRef;
+
+  // If a ref is provided via forwardRef, expose the disconnect and execute methods
+  useImperativeHandle(ref, () => ({
+    disconnect: () => {
+      if (terminalRef.current) {
+        terminalRef.current.disconnect();
+      }
+    },
+    execute: (command: string, enter?: boolean) => {
+      if (terminalRef.current) {
+        terminalRef.current.execute(command, enter);
+      }
+    },
+    sendInput: (input: string) => {
+      if (terminalRef.current) {
+        terminalRef.current.sendInput(input);
+      }
+    }
+  }), [terminalRef]);
+
+  // If the user provided a terminalRef, populate it with the disconnect and execute methods
+  useImperativeHandle(userTerminalRef, () => ({
+    disconnect: () => {
+      if (internalTerminalRef.current) {
+        internalTerminalRef.current.disconnect();
+      }
+    },
+    execute: (command: string, enter?: boolean) => {
+      if (internalTerminalRef.current) {
+        internalTerminalRef.current.execute(command, enter);
+      }
+    },
+    sendInput: (input: string) => {
+      if (internalTerminalRef.current) {
+        internalTerminalRef.current.sendInput(input);
+      }
+    }
+  }), []);
+
   const options = useMemo(
     () => ({
       wsUrl: wsUrl,
@@ -95,10 +146,10 @@ const TtydComponent: React.FC<TtydProps> = ({
 
   return (
     <div className={className} style={{ width: '100%', height: '100%', ...style }}>
-      <Terminal {...options} id="terminal-container" />
+      <Terminal ref={internalTerminalRef} {...options} id="terminal-container" backgroundColor={options?.termOptions?.theme?.background} />
     </div>
   );
-};
+});
 
 export const Ttyd = React.memo(TtydComponent, (prevProps, nextProps) => {
   return prevProps.wsUrl === nextProps.wsUrl &&

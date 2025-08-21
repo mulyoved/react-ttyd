@@ -47,7 +47,6 @@ Then use the component in your React application:
 
 ```tsx
 import { Ttyd } from 'react-ttyd';
-import 'react-ttyd/dist/index.css';
 
 function App() {
   return (
@@ -207,7 +206,7 @@ npm run build
 ttyd --writable bash
 
 # Run the example
-cd example
+cd example/nextjs # or cd example/vite
 npm install
 npm run dev
 ```

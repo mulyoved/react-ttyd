@@ -1,6 +1,19 @@
-# react-ttyd Example
+# React TTYd Vite Example
 
-This is an example application demonstrating the usage of the `react-ttyd` React component for integrating ttyd web terminal.
+This is a comprehensive example application demonstrating the usage of the `react-ttyd` React component for integrating ttyd web terminal with Vite.
+
+## Features Demonstrated
+
+- **Basic Terminal Integration**: WebSocket connection to ttyd server
+- **Connection Management**: Connect/disconnect functionality with status indicators
+- **Dynamic Configuration**: Runtime modification of:
+  - WebSocket URL
+  - Renderer type (WebGL, Canvas, DOM)
+  - Font size
+  - Authentication credentials
+- **Terminal Output Monitoring**: Real-time terminal output logging
+- **Responsive Design**: Mobile-friendly interface
+- **Theme Support**: Styled with modern UI components
 
 ## Prerequisites
 
@@ -25,7 +38,12 @@ sudo apt-get install ttyd
 ### 2. Start ttyd server
 
 ```bash
+# Basic usage (no authentication)
 ttyd --writable bash
+
+# With basic authentication
+ttyd --writable --credential testuser:testpw bash
+
 # Output: Listening on port: 7681
 ```
 
@@ -35,7 +53,7 @@ From the root directory of the project:
 
 ```bash
 # Navigate to the root directory
-cd ..
+cd ../..
 
 # Install dependencies
 npm install
@@ -48,7 +66,7 @@ npm run build
 
 ```bash
 # Navigate to the example directory
-cd example
+cd example/vite
 
 # Install dependencies
 npm install
@@ -59,121 +77,168 @@ npm run dev
 
 The example will be available at `http://localhost:5173`
 
+## Key Components
+
+### Terminal Integration
+
+```typescript
+import { Ttyd } from 'react-ttyd';
+import 'react-ttyd/dist/index.css';
+
+<Ttyd
+  wsUrl="ws://localhost:7681/ws"
+  clientOptions={{
+    rendererType: 'webgl',
+  }}
+  termOptions={{
+    fontSize: 14,
+  }}
+/>
+```
+
+### Authentication
+
+```typescript
+// Basic authentication
+<Ttyd
+  wsUrl="ws://localhost:7681/ws"
+  authToken={btoa('username:password')}
+/>
+```
+
+### Event Handling
+
+```typescript
+<Ttyd
+  onConnectionOpen={(event) => {
+    console.log('Connected to ttyd server');
+  }}
+  onConnectionClose={(event) => {
+    console.log('Disconnected from ttyd server');
+  }}
+  onConnectionError={(event) => {
+    console.error('Connection error:', event);
+  }}
+  onData={(data) => {
+    console.log('Terminal output:', data);
+  }}
+/>
+```
+
 ## Vercel Deployment
 
-To deploy this example to Vercel using a locally built version of react-ttyd:
+To deploy this example to Vercel:
 
-### 1. Build react-ttyd locally
-
-From the root directory:
+### 1. Prepare for deployment
 
 ```bash
 # Build the package
-npm run build
+cd ../.. && npm run build
+cd example/vite
 ```
 
-### 2. Update package.json
-
-In the example directory, modify `package.json` to use the local build:
-
-```json
-{
-  "dependencies": {
-    "react-ttyd": "file:../",
-    // ... other dependencies
-  }
-}
-```
-
-### 3. Install dependencies
-
-```bash
-npm install
-```
-
-### 4. Build for production
-
-```bash
-npm run build
-```
-
-### 5. Deploy to Vercel
+### 2. Deploy to Vercel
 
 Option A: Using Vercel CLI
 
 ```bash
-# Install Vercel CLI if you haven't already
+# Install Vercel CLI
 npm i -g vercel
 
-# Deploy with custom build command
-vercel --build-command "cd .. && npm install && npm run build && cd example && npm install && npm run build"
+# Deploy
+vercel
 
-# Follow the prompts to complete deployment
+# Follow the prompts
 ```
 
 Option B: Using Git integration
 
-1. Push your code to a Git repository (GitHub, GitLab, or Bitbucket)
+1. Push your code to GitHub/GitLab/Bitbucket
 2. Import the project on [vercel.com](https://vercel.com)
-3. Configure the following settings:
-   - **Root Directory**: `example`
-   - **Build Command**: `cd .. && npm install && npm run build && cd example && npm install && npm run build`
-   - **Output Directory**: `dist`
-   - **Install Command**: `npm install`
+3. Configure:
+   - **Root Directory**: `example/vite`
+   - **Framework Preset**: Vite
 4. Deploy
-
-### Vercel Configuration File (Alternative)
-
-Create a `vercel.json` file in the example directory:
-
-```json
-{
-  "buildCommand": "cd .. && npm install && npm run build && cd example && npm install && npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "framework": "vite"
-}
-```
-
-This ensures that react-ttyd is built fresh during each Vercel deployment.
 
 ### Environment Variables
 
-If your ttyd server is hosted remotely, you may want to set environment variables in Vercel:
+For production deployments, set these environment variables in Vercel:
 
 - `VITE_TTYD_URL`: The WebSocket URL for your ttyd server (e.g., `wss://your-ttyd-server.com/ws`)
 
-## Configuration
+## Configuration Options
 
 The example demonstrates various configuration options:
 
-- **WebSocket URL**: Configure the ttyd server connection
-- **Renderer Type**: Choose between WebGL, Canvas, or DOM rendering
-- **Font Size**: Adjust terminal font size
+| Option | Description | Example |
+|--------|-------------|---------|
+| WebSocket URL | ttyd server connection | `ws://localhost:7681/ws` |
+| Renderer Type | Terminal rendering engine | `webgl`, `canvas`, `dom` |
+| Font Size | Terminal font size | `13` |
+| Username | Basic auth username | `testuser` |
+| Password | Basic auth password | `testpw` |
 
 ## Security Considerations
 
-- For production deployments, ensure your ttyd server is properly secured
-- Use HTTPS/WSS for secure connections
-- Implement proper authentication mechanisms
-- Consider using a reverse proxy for additional security
+- **HTTPS/WSS**: Use secure connections in production
+- **Authentication**: Implement proper authentication mechanisms
+- **CORS**: Configure ttyd to allow your domain:
+  ```bash
+  ttyd --writable --allow-origin "https://your-domain.vercel.app" bash
+  ```
+- **Network Security**: Use a reverse proxy or VPN for additional security
 
 ## Troubleshooting
 
 ### CORS Issues
 
-If you encounter CORS issues, ensure your ttyd server allows connections from your domain:
-
 ```bash
-ttyd --writable --allow-origin "https://your-domain.vercel.app" bash
+# Allow specific origin
+ttyd --writable --allow-origin "http://localhost:5173" bash
+
+# Allow all origins (development only!)
+ttyd --writable --allow-origin "*" bash
 ```
 
 ### WebSocket Connection Failed
 
-1. Check that ttyd server is running
-2. Verify the WebSocket URL is correct
-3. Ensure no firewall is blocking the connection
-4. For Vercel deployment, make sure your ttyd server is accessible from the internet
+1. Check ttyd server is running: `ps aux | grep ttyd`
+2. Verify WebSocket URL matches ttyd port
+3. Check firewall settings
+4. For remote servers, ensure the port is publicly accessible
+
+### Build Issues
+
+```bash
+# Clear cache and rebuild
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
+```
+
+## Project Structure
+
+```
+example/vite/
+├── src/
+│   ├── App.tsx              # Main application component
+│   ├── EventCallbacksExample.tsx  # Event handling example
+│   ├── main.tsx            # Application entry point
+│   └── App.css             # Styles
+├── public/
+│   └── terminal.svg        # Terminal icon
+├── index.html              # HTML template
+├── package.json            # Dependencies
+├── vite.config.ts          # Vite configuration
+└── vercel.json            # Vercel deployment config
+```
+
+## Learn More
+
+- [react-ttyd Documentation](https://github.com/tantara/react-ttyd)
+- [ttyd Documentation](https://github.com/tsl0922/ttyd)
+- [Vite Documentation](https://vitejs.dev)
+- [Vercel Documentation](https://vercel.com/docs)
 
 ## License
 
