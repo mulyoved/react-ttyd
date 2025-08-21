@@ -45,6 +45,12 @@ ttyd --writable bash
 ttyd --writable --credential testuser:testpw bash
 
 # Output: Listening on port: 7681
+
+### Expose the ttyd port
+# Install ngrok
+brew install ngrok
+# Run ngrok
+ngrok http 7681
 ```
 
 ### 3. Build react-ttyd package
@@ -170,13 +176,13 @@ For production deployments, set these environment variables in Vercel:
 
 The example demonstrates various configuration options:
 
-| Option | Description | Example |
-|--------|-------------|---------|
-| WebSocket URL | ttyd server connection | `ws://localhost:7681/ws` |
+| Option        | Description               | Example                  |
+| ------------- | ------------------------- | ------------------------ |
+| WebSocket URL | ttyd server connection    | `ws://localhost:7681/ws` |
 | Renderer Type | Terminal rendering engine | `webgl`, `canvas`, `dom` |
-| Font Size | Terminal font size | `13` |
-| Username | Basic auth username | `testuser` |
-| Password | Basic auth password | `testpw` |
+| Font Size     | Terminal font size        | `13`                     |
+| Username      | Basic auth username       | `testuser`               |
+| Password      | Basic auth password       | `testpw`                 |
 
 ## Security Considerations
 

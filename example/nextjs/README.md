@@ -51,7 +51,17 @@ ttyd --writable --credential testuser:testpw bash
 ttyd --writable --allow-origin "http://localhost:3000" bash
 ```
 
-### 3. Build react-ttyd package
+### 3. Expose the ttyd port
+
+```bash
+# Install ngrok
+brew install ngrok
+
+# Run ngrok
+ngrok http 7681
+```
+
+### 4. Build react-ttyd package
 
 From the root directory:
 
@@ -64,7 +74,7 @@ npm install
 npm run build
 ```
 
-### 4. Run the Next.js example
+### 5. Run the Next.js example
 
 ```bash
 # Navigate to example
@@ -164,11 +174,11 @@ const keyboardShortcuts = [
 
 Set these in your Vercel project settings:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `NEXT_PUBLIC_TTYD_URL` | WebSocket URL | `wss://ttyd.example.com/ws` |
-| `NEXT_PUBLIC_TTYD_USERNAME` | Basic auth username | `user` |
-| `NEXT_PUBLIC_TTYD_PASSWORD` | Basic auth password | `pass` |
+| Variable                    | Description         | Example                     |
+| --------------------------- | ------------------- | --------------------------- |
+| `NEXT_PUBLIC_TTYD_URL`      | WebSocket URL       | `wss://ttyd.example.com/ws` |
+| `NEXT_PUBLIC_TTYD_USERNAME` | Basic auth username | `user`                      |
+| `NEXT_PUBLIC_TTYD_PASSWORD` | Basic auth password | `pass`                      |
 
 ## Project Structure
 
@@ -192,12 +202,12 @@ example/nextjs/
 
 ## Configuration Options
 
-| Option | Description | Values |
-|--------|-------------|--------|
-| WebSocket URL | ttyd server endpoint | `ws://localhost:7681/ws` |
-| Renderer Type | Terminal rendering engine | `webgl`, `canvas`, `dom` |
-| Font Size | Terminal text size | `8-24` |
-| Authentication | Basic auth credentials | Base64 encoded `user:pass` |
+| Option         | Description               | Values                     |
+| -------------- | ------------------------- | -------------------------- |
+| WebSocket URL  | ttyd server endpoint      | `ws://localhost:7681/ws`   |
+| Renderer Type  | Terminal rendering engine | `webgl`, `canvas`, `dom`   |
+| Font Size      | Terminal text size        | `8-24`                     |
+| Authentication | Basic auth credentials    | Base64 encoded `user:pass` |
 
 ## Security Best Practices
 

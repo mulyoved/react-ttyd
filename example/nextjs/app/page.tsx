@@ -207,12 +207,16 @@ export default function Home() {
                     <CardContent className="space-y-6">
                         {/* Installation Commands */}
                         <div className="rounded-base bg-black text-green-400 p-2 sm:p-4 font-mono text-xs sm:text-sm border-2 border-border shadow-shadow overflow-x-auto">
+                            <div className="text-gray-400 mt-2">Install and run ttyd:</div>
                             <div>$ brew install ttyd</div>
                             <div>$ ttyd --writable bash</div>
-                            <div>$ # With basic auth:</div>
+                            <div className="text-gray-400 mt-2">Secure the ttyd server with basic auth:</div>
                             <div className="break-all">$ ttyd --writable --credential testuser:testpw bash</div>
                             <div className="ml-2 sm:ml-5 text-gray-400">lws_socket_bind: source ads 127.0.0.1</div>
                             <div className="ml-2 sm:ml-5 text-gray-400">Listening on port: 7681</div>
+                            <div className="ml-2 sm:ml-5 text-gray-400">...</div>
+                            <div className="text-gray-400 mt-2">Expose the ttyd port:</div>
+                            <div>$ ngrok http 7681</div>
                         </div>
 
                         {/* Connection Settings */}

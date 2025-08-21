@@ -82,6 +82,16 @@ ttyd --writable --credential testuser:testpw bash
 />
 ```
 
+### Expose the ttyd port
+
+```bash
+# Install ngrok
+brew install ngrok
+
+# Run ngrok
+ngrok http 7681
+```
+
 ## API Reference
 
 ### Ttyd Component Props
