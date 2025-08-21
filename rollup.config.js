@@ -23,7 +23,7 @@ export default {
     resolve(),
     commonjs(),
     postcss({
-      extract: "index.css",
+      extract: false,
       modules: false,
       use: ["sass"],
       minimize: true,

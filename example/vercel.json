@@ -1,6 +1,0 @@
-{
-  "buildCommand": "cd .. && npm install && npm run build && cd example && npm install && npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install",
-  "framework": "vite"
-}

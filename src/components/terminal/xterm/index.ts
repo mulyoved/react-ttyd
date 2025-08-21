@@ -112,24 +112,24 @@ export class Xterm {
     if (!this.options.tokenUrl) return;
     try {
       let tokenUrl = this.options.tokenUrl;
-      
+
       // If we have an authToken, append it to the URL
       if (this.authToken) {
-        const separator = tokenUrl.includes('?') ? '&' : '?';
+        const separator = tokenUrl.includes("?") ? "&" : "?";
         // URL encode the auth token to handle special characters
         const encodedToken = encodeURIComponent(this.authToken);
         tokenUrl = `${tokenUrl}${separator}authorization=${encodedToken}`;
       }
-      
+
       const resp = await fetch(tokenUrl, {
-        method: 'POST',
+        method: "POST",
       });
       if (resp.ok) {
         const json = await resp.json();
         this.token = json.token;
       }
     } catch (e) {
-      console.error(`[ttyd] fetch ${this.options.tokenUrl}: `, e);
+      console.error(`[react-ttyd] fetch ${this.options.tokenUrl}: `, e);
     }
   }
 
@@ -242,7 +242,8 @@ export class Xterm {
 
     // Call onData callback with the decoded string
     if (this.options.onData) {
-      const dataStr = typeof data === 'string' ? data : textDecoder.decode(data);
+      const dataStr =
+        typeof data === "string" ? data : textDecoder.decode(data);
       this.options.onData(dataStr);
     }
 
@@ -286,12 +287,12 @@ export class Xterm {
     let wsUrl = this.options.wsUrl;
     const authToken = this.authToken || this.token;
     if (authToken) {
-      const separator = wsUrl.includes('?') ? '&' : '?';
+      const separator = wsUrl.includes("?") ? "&" : "?";
       // URL encode the auth token to handle special characters
       const encodedToken = encodeURIComponent(authToken);
       wsUrl = `${wsUrl}${separator}authorization=${encodedToken}`;
     }
-    
+
     this.socket = new WebSocket(wsUrl, ["tty"]);
     const { socket } = this;
 
@@ -311,13 +312,36 @@ export class Xterm {
     );
   }
 
+  public disconnect() {
+    if (this.socket) {
+      this.doReconnect = false; // Prevent automatic reconnection
+      this.socket.close(1000, "User initiated disconnect"); // 1000 is normal closure
+    }
+  }
+
+  public execute(command: string, enter: boolean = true) {
+    if (this.terminal && this.socket?.readyState === WebSocket.OPEN) {
+      // Send the command with a carriage return to execute it
+      this.sendData(command);
+      if (enter) {
+        this.terminal.input("\r");
+      }
+    }
+  }
+
+  public sendInput(input: string) {
+    if (this.terminal && this.socket?.readyState === WebSocket.OPEN) {
+      this.terminal.input(input);
+    }
+  }
+
   private onSocketOpen = (event: Event) => {
-    console.log("[ttyd] websocket connection opened");
+    console.log("[react-ttyd] websocket connection opened");
     this.options.onConnectionOpen?.(event);
 
     const { textEncoder, terminal, overlayAddon } = this;
     if (terminal === undefined) {
-      console.log("[ttyd] terminal not initialized");
+      console.log("[react-ttyd] terminal not initialized");
       return;
     }
 
@@ -342,17 +366,24 @@ export class Xterm {
   };
 
   private onSocketClose = (event: CloseEvent) => {
-    console.log(`[ttyd] websocket connection closed with code: ${event.code}`);
+    console.log(
+      `[react-ttyd] websocket connection closed with code: ${event.code}`
+    );
     this.options.onConnectionClose?.(event);
 
-    const { refreshToken, connect, doReconnect, overlayAddon } = this;
+    const { doReconnect, overlayAddon } = this;
     overlayAddon.show("Connection Closed");
     this.dispose();
 
     // 1000: CLOSE_NORMAL
     if (event.code !== 1000 && doReconnect) {
       overlayAddon.show("Reconnecting...");
-      refreshToken().then(() => connect());
+      this.refreshToken()
+        .then(() => this.connect())
+        .catch((e) => {
+          console.error(`[react-ttyd] error refreshing token: ${e}`);
+          overlayAddon.show("Press ⏎ to Reconnect");
+        });
     } else if (this.closeOnDisconnect) {
       window.close();
     } else {
@@ -362,7 +393,12 @@ export class Xterm {
         if (event.key === "Enter") {
           keyDispose.dispose();
           overlayAddon.show("Reconnecting...");
-          this.refreshToken().then(() => this.connect());
+          this.refreshToken()
+            .then(() => this.connect())
+            .catch((e) => {
+              console.error(`[react-ttyd] error refreshing token: ${e}`);
+              overlayAddon.show("Press ⏎ to Reconnect");
+            });
         }
       });
       overlayAddon.show("Press ⏎ to Reconnect");
@@ -389,7 +425,7 @@ export class Xterm {
         break;
       }
       default:
-        console.warn(`[ttyd] unknown command: ${cmd}`);
+        console.warn(`[react-ttyd] unknown command: ${cmd}`);
         break;
     }
   };
@@ -408,13 +444,13 @@ export class Xterm {
         case "enableTrzsz":
         case "enableSixel":
         case "titleFixed":
-          console.log(`[ttyd] option ${key} = ${value}`);
+          console.log(`[react-ttyd] option ${key} = ${value}`);
           (clientOptions as unknown as Record<string, unknown>)[key] = value;
           break;
         default:
           if ((terminal.options as Record<string, unknown>)[key] !== value) {
             (terminal.options as Record<string, unknown>)[key] = value;
-            console.log(`[ttyd] option ${key} = ${value}`);
+            console.log(`[react-ttyd] option ${key} = ${value}`);
           }
           break;
       }

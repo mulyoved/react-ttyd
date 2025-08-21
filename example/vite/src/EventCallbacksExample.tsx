@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { Ttyd } from 'react-ttyd';
-import 'react-ttyd/dist/index.css';
 
 /**
  * Example demonstrating how to use event callbacks with react-ttyd
