@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useRef, useState, useImperativeHandle, forwardRef, memo, useMemo } from 'react';
 import { Xterm } from './xterm';
 import { Modal } from '../modal/Modal';
 import type { XtermOptions } from '../../types';
@@ -16,7 +16,7 @@ export interface TerminalHandle {
     sendInput: (input: string) => void;
 }
 
-export const Terminal = forwardRef<TerminalHandle, TerminalProps>((props, ref) => {
+const TerminalComponent = forwardRef<TerminalHandle, TerminalProps>((props, ref) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const xtermRef = useRef<Xterm | null>(null);
     const [showModal, setShowModal] = useState(false);
@@ -47,42 +47,57 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>((props, ref) =
         }
     };
 
-    if (xtermRef && xtermRef.current) {
-        xtermRef.current.dispose();
-        xtermRef.current = null;
-        if (containerRef.current) {
-            containerRef.current.innerHTML = '';
-        }
-    }
+    // Memoize the options object to prevent unnecessary recreations
+    const terminalOptions = useMemo(() => ({
+        wsUrl: props.wsUrl,
+        tokenUrl: props.tokenUrl,
+        authToken: props.authToken,
+        flowControl: props.flowControl,
+        clientOptions: props.clientOptions,
+        termOptions: props.termOptions,
+        onConnectionOpen: props.onConnectionOpen,
+        onConnectionClose: props.onConnectionClose,
+        onConnectionError: props.onConnectionError,
+        onData: props.onData,
+    }), [
+        props.wsUrl,
+        props.tokenUrl,
+        props.authToken,
+        props.flowControl,
+        props.clientOptions,
+        props.termOptions,
+        props.onConnectionOpen,
+        props.onConnectionClose,
+        props.onConnectionError,
+        props.onData,
+    ]);
 
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // Prevent double initialization
+        // Cleanup existing terminal if it exists
         if (xtermRef.current) {
-            console.log("Terminal already initialized, skipping");
-            return;
+            xtermRef.current.dispose();
+            xtermRef.current = null;
+            if (containerRef.current) {
+                containerRef.current.innerHTML = '';
+            }
         }
 
-        const options = {
-            wsUrl: props.wsUrl,
-            tokenUrl: props.tokenUrl,
-            authToken: props.authToken,
-            flowControl: props.flowControl,
-            clientOptions: props.clientOptions,
-            termOptions: props.termOptions,
-            onConnectionOpen: props.onConnectionOpen,
-            onConnectionClose: props.onConnectionClose,
-            onConnectionError: props.onConnectionError,
-            onData: props.onData,
-        };
-
-        console.log("Initializing terminal", options.wsUrl, "id", props.id);
-        const xterm = new Xterm(options, () => setShowModal(true));
+        console.log("Initializing terminal", terminalOptions.wsUrl, "id", props.id);
+        const xterm = new Xterm(terminalOptions, () => setShowModal(true));
         xtermRef.current = xterm;
+
+        let mounted = true;
 
         const init = async () => {
             await xterm.refreshToken();
+
+            if (!mounted || !containerRef.current) {
+                xterm.dispose();
+                return;
+            }
+
             xterm.open(containerRef.current!);
             xterm.connect();
         };
@@ -90,10 +105,15 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>((props, ref) =
         init();
 
         return () => {
-            xterm.dispose();
-            xtermRef.current = null;
+            mounted = false;
+            if (xtermRef.current) {
+                xtermRef.current.dispose();
+                xtermRef.current = null;
+            }
         };
-    }, [props]);
+        // Only recreate terminal if wsUrl changes
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.wsUrl]);
 
     return (
         <div id={props.id} ref={containerRef} style={{ width: '100%', height: '100%', backgroundColor: props.backgroundColor ?? 'black' }}>
@@ -112,4 +132,17 @@ export const Terminal = forwardRef<TerminalHandle, TerminalProps>((props, ref) =
     );
 });
 
-Terminal.displayName = 'Terminal';
+TerminalComponent.displayName = 'Terminal';
+
+export const Terminal = memo(TerminalComponent, (prevProps, nextProps) => {
+    // Only re-render if critical props change
+    return (
+        prevProps.id === nextProps.id &&
+        prevProps.wsUrl === nextProps.wsUrl &&
+        prevProps.tokenUrl === nextProps.tokenUrl &&
+        prevProps.authToken === nextProps.authToken &&
+        JSON.stringify(prevProps.clientOptions) === JSON.stringify(nextProps.clientOptions) &&
+        JSON.stringify(prevProps.termOptions) === JSON.stringify(nextProps.termOptions) &&
+        JSON.stringify(prevProps.flowControl) === JSON.stringify(nextProps.flowControl)
+    );
+});
