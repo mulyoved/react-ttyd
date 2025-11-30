@@ -19,7 +19,7 @@
     "dev:example": "rollup -c && cd example/nextjs && npm run dev",
     "dev:example:vite": "rollup -c && cd example/vite && npm run dev",
     "ttyd": "ttyd -i 0.0.0.0 --writable bash",
-    "dev:all": "ttyd -i 0.0.0.0 --writable bash & cd example/nextjs && npm run dev -- -H 0.0.0.0"
+    "dev:all": "ttyd -i 0.0.0.0 -p 7682 --writable tmux attach || ttyd -i 0.0.0.0 -p 7682 --writable tmux new-session -s main & (sudo tailscale serve --bg --https=4002 http://127.0.0.1:3002 || true) && (sudo tailscale serve --bg --https=4003 http://127.0.0.1:7682 || true) && cd example/nextjs && npm run dev -- -H 0.0.0.0 -p 3002"
   },
   "keywords": [
     "react",

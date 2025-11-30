@@ -49,14 +49,17 @@ interface StripeButtonProps extends React.ComponentProps<typeof Button> {
     active?: boolean;
 }
 
-export const StripeButton: React.FC<StripeButtonProps> = ({
-    label,
-    icon,
-    tone = 'default',
-    active,
-    className,
-    ...props
-}) => {
+export const StripeButton = React.forwardRef<HTMLButtonElement, StripeButtonProps>(function StripeButton(
+    {
+        label,
+        icon,
+        tone = 'default',
+        active,
+        className,
+        ...props
+    },
+    ref
+) {
     const toneClasses = {
         default: 'bg-transparent text-white border-transparent hover:bg-white/5',
         muted: 'bg-transparent text-white border-transparent hover:bg-white/5',
@@ -66,12 +69,13 @@ export const StripeButton: React.FC<StripeButtonProps> = ({
     return (
         <Button
             {...props}
+            ref={ref}
             size="icon"
             variant="noShadow"
             aria-label={label}
             title={label}
             className={cn(
-                'w-full border-2 shadow-shadow transition-transform hover:-translate-y-px',
+                'w-full flex-1 min-h-12 border-2 shadow-shadow transition-transform hover:-translate-y-px',
                 toneClasses[tone],
                 active ? 'ring-2 ring-offset-2 ring-main ring-offset-gray-900' : 'ring-0',
                 className,
@@ -80,4 +84,46 @@ export const StripeButton: React.FC<StripeButtonProps> = ({
             {icon}
         </Button>
     );
+});
+
+type OverlayButton = {
+    key: string | number;
+    label: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    disabled?: boolean;
+    active?: boolean;
 };
+
+interface SideButtonOverlayProps {
+    buttons: OverlayButton[];
+    side?: 'left' | 'right';
+    className?: string;
+}
+
+export const SideButtonOverlay = React.forwardRef<HTMLDivElement, SideButtonOverlayProps>(
+    ({ buttons, side = 'left', className }, ref) => {
+        return (
+            <div
+                ref={ref}
+                className={cn(
+                    'pointer-events-auto absolute top-0 bottom-0 z-50 flex flex-col gap-0 border-2 border-border bg-gray-900 px-0 py-3 sm:py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
+                    'w-16 sm:w-20',
+                    side === 'left' ? 'left-0' : 'right-0',
+                    className,
+                )}
+            >
+                {buttons.map((btn) => (
+                    <StripeButton
+                        key={btn.key}
+                        label={btn.label}
+                        icon={btn.icon}
+                        onClick={btn.onClick}
+                        disabled={btn.disabled}
+                        active={btn.active}
+                    />
+                ))}
+            </div>
+        );
+    }
+);

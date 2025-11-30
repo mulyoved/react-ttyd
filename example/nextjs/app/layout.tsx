@@ -19,6 +19,14 @@ export const metadata: Metadata = {
   description: "React component for ttyd web terminal - Next.js Example",
   icons: {
     icon: '/terminal.svg',
+    apple: '/terminal.svg',
+  },
+  manifest: '/manifest.webmanifest',
+  themeColor: '#000000',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'React TTYd',
   },
 };
 

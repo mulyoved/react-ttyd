@@ -324,15 +324,14 @@ export class Xterm {
       // Send the command with a carriage return to execute it
       this.sendData(command);
       if (enter) {
-        this.terminal.input("\r");
+        this.sendData("\r");
       }
     }
   }
 
   public sendInput(input: string) {
-    if (this.terminal && this.socket?.readyState === WebSocket.OPEN) {
-      this.terminal.input(input);
-    }
+    if (this.socket?.readyState !== WebSocket.OPEN) return;
+    this.sendData(input);
   }
 
   private onSocketOpen = (event: Event) => {
