@@ -9,12 +9,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Github, Zap, Bot, ChevronDown, ChevronUp, Power, Eraser, ListTree, SquareX, RefreshCw, ListRestart, CornerDownLeft } from 'lucide-react';
+import { Github, Zap, Bot, ChevronDown, ChevronUp, Power, Eraser, SquareX, ListRestart, Command, ArrowDownUp } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { StripeButtonBar, StripeButton, SideButtonOverlay } from '@/components/stripe-button-bar';
+import { commandPresets, type CommandPreset, type CommandStep } from '../configure';
 
 // Dynamic import with SSR disabled
 const Ttyd = dynamic(
@@ -52,6 +53,7 @@ export default function Home() {
     const [outputLog, setOutputLog] = useState<string[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isWindowPickerOpen, setIsWindowPickerOpen] = useState(false);
+    const [isCommandPickerOpen, setIsCommandPickerOpen] = useState(false);
     const [commandInput, setCommandInput] = useState('');
     const [pasteText, setPasteText] = useState('');
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -64,6 +66,8 @@ export default function Home() {
     });
     const windowPickerRef = useRef<HTMLDivElement | null>(null);
     const windowPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const commandPickerRef = useRef<HTMLDivElement | null>(null);
+    const commandPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
     const [formState, setFormState] = useState({
         wsUrl: 'wss://dev-remote-machine-1.tail83108.ts.net:4003/ws',
         rendererType: 'webgl' as RendererType,
@@ -71,6 +75,7 @@ export default function Home() {
         username: '',
         password: '',
     });
+    const [, setIsFullscreen] = useState(false);
 
     const disconnect = () => {
         if (connectionStatus !== 'connected') return;
@@ -136,6 +141,50 @@ export default function Home() {
         }
     };
 
+    const sendStep = (step: CommandStep) => {
+        if (!terminalRef.current) return;
+        const times = step.repeat ?? 1;
+        for (let i = 0; i < times; i += 1) {
+            switch (step.type) {
+                case 'text':
+                    terminalRef.current.sendInput(step.data);
+                    break;
+                case 'enter':
+                    terminalRef.current.sendInput('\r');
+                    break;
+                case 'arrowDown':
+                    terminalRef.current.sendInput('\x1b[B');
+                    break;
+                case 'arrowUp':
+                    terminalRef.current.sendInput('\x1b[A');
+                    break;
+                case 'esc':
+                    terminalRef.current.sendInput('\x1b');
+                    break;
+                case 'space':
+                    terminalRef.current.sendInput(' ');
+                    break;
+                case 'tab':
+                    terminalRef.current.sendInput('\t');
+                    break;
+                default:
+                    break;
+            }
+        }
+    };
+
+    const handleSelectCommand = (cmd: CommandPreset) => {
+        if (!terminalRef.current) return;
+        const baseDelay = 50;
+        let delay = 0;
+        cmd.steps.forEach((step) => {
+            const stepDelay = step.delayMs ?? baseDelay;
+            setTimeout(() => sendStep(step), delay);
+            delay += stepDelay * (step.repeat ?? 1);
+        });
+        setIsCommandPickerOpen(false);
+    };
+
     const handleSendShortcut = (key: string) => {
         if (terminalRef.current) {
             terminalRef.current.sendInput(key);
@@ -144,10 +193,6 @@ export default function Home() {
 
     const handleClearScreen = () => {
         terminalRef.current?.execute('clear');
-    };
-
-    const handleListFiles = () => {
-        terminalRef.current?.execute('ls -la');
     };
 
     const handleInterrupt = () => {
@@ -183,16 +228,22 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
-        if (!isWindowPickerOpen) return;
+        if (!isWindowPickerOpen && !isCommandPickerOpen) return;
         const handleClick = (event: MouseEvent) => {
             const target = event.target as Node;
-            if (windowPickerRef.current?.contains(target)) return;
-            if (windowPickerTriggerRef.current?.contains(target)) return;
+            const insideWindowOverlay = windowPickerRef.current?.contains(target);
+            const insideWindowTrigger = windowPickerTriggerRef.current?.contains(target);
+            const insideCommandOverlay = commandPickerRef.current?.contains(target);
+            const insideCommandTrigger = commandPickerTriggerRef.current?.contains(target);
+
+            if (insideWindowOverlay || insideWindowTrigger || insideCommandOverlay || insideCommandTrigger) return;
+
             setIsWindowPickerOpen(false);
+            setIsCommandPickerOpen(false);
         };
         window.addEventListener('mousedown', handleClick);
         return () => window.removeEventListener('mousedown', handleClick);
-    }, [isWindowPickerOpen]);
+    }, [isWindowPickerOpen, isCommandPickerOpen]);
 
     const isConnected = connectionStatus === 'connected';
 
@@ -214,18 +265,19 @@ export default function Home() {
             disabled: !isConnected,
         },
         {
-            key: 'list',
-            label: 'List files',
-            icon: <ListTree className="h-4 w-4" />,
-            onClick: handleListFiles,
+            key: 'ctrl-g',
+            label: 'Ctrl+G',
+            icon: <ArrowDownUp className="h-4 w-4" />,
+            onClick: () => terminalRef.current?.sendInput('\x07'),
+            tone: 'muted' as const,
             disabled: !isConnected,
         },
         {
-            key: 'interrupt',
-            label: 'Send Ctrl+C',
-            icon: <SquareX className="h-4 w-4" />,
-            onClick: handleInterrupt,
-            tone: 'danger' as const,
+            key: 'enter',
+            label: 'Enter',
+            icon: <span className="text-xs font-bold">⏎</span>,
+            onClick: () => terminalRef.current?.sendInput('\r'),
+            tone: 'muted' as const,
             disabled: !isConnected,
         },
         {
@@ -444,9 +496,24 @@ export default function Home() {
                             side="left"
                         />
                     )}
-                    <StripeButtonBar
-                        footer={<div className="h-1 w-full rounded-full bg-main shadow-shadow" />}
-                    >
+                    {isCommandPickerOpen && (
+                        <SideButtonOverlay
+                            ref={commandPickerRef}
+                        buttons={commandPresets.map((cmd) => ({
+                            key: `cmd-${cmd.label}`,
+                            label: cmd.label,
+                            icon: <span className="text-sm font-mono leading-none">{cmd.label}</span>,
+                            onClick: () => handleSelectCommand(cmd),
+                            disabled: !isConnected,
+                            stretch: false,
+                            size: 'default',
+                            className: 'justify-start px-3',
+                        }))}
+                            side="left"
+                            fitContent
+                        />
+                    )}
+                    <StripeButtonBar>
                         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                             <DialogTrigger asChild>
                                 <StripeButton
@@ -506,11 +573,11 @@ export default function Home() {
                                             <p className="text-sm text-muted-foreground">
                                                 Click on any shortcut to send it to the terminal.
                                             </p>
-                                            <ScrollArea className="h-[300px] rounded-base border-2 border-border bg-white">
-                                                <div className="p-2 space-y-2">
-                                                    {keyboardShortcuts.map((shortcut) => (
-                                                        <Button
-                                                            key={shortcut.name}
+                                        <ScrollArea className="h-[300px] rounded-base border-2 border-border bg-white">
+                                            <div className="p-2 space-y-2">
+                                                {keyboardShortcuts.map((shortcut) => (
+                                                    <Button
+                                                        key={shortcut.name}
                                                             variant="neutral"
                                                             className="w-full h-auto py-3 px-4 justify-start text-left bg-secondary-background hover:bg-main hover:text-main-foreground transition-colors"
                                                             onClick={() => {
@@ -527,6 +594,11 @@ export default function Home() {
                                                 </div>
                                             </ScrollArea>
                                         </div>
+                                        <DialogFooter>
+                                            <Button onClick={handlePasteText} type="button">
+                                                Paste
+                                            </Button>
+                                        </DialogFooter>
                                     </TabsContent>
                                 </Tabs>
                             </DialogContent>
@@ -535,7 +607,20 @@ export default function Home() {
                             label="Switch tmux window"
                             icon={<ListRestart className="h-4 w-4" />}
                             ref={windowPickerTriggerRef}
-                            onClick={() => setIsWindowPickerOpen(!isWindowPickerOpen)}
+                            onClick={() => {
+                                setIsCommandPickerOpen(false);
+                                setIsWindowPickerOpen(!isWindowPickerOpen);
+                            }}
+                            disabled={!isConnected}
+                        />
+                        <StripeButton
+                            label="Command presets"
+                            icon={<Command className="h-4 w-4" />}
+                            ref={commandPickerTriggerRef}
+                            onClick={() => {
+                                setIsWindowPickerOpen(false);
+                                setIsCommandPickerOpen(!isCommandPickerOpen);
+                            }}
                             disabled={!isConnected}
                         />
                         {stripeButtons.map((action) => (

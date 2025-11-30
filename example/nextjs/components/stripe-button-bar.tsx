@@ -47,6 +47,8 @@ interface StripeButtonProps extends React.ComponentProps<typeof Button> {
     icon: React.ReactNode;
     tone?: StripeButtonTone;
     active?: boolean;
+    size?: React.ComponentProps<typeof Button>['size'];
+    stretch?: boolean;
 }
 
 export const StripeButton = React.forwardRef<HTMLButtonElement, StripeButtonProps>(function StripeButton(
@@ -56,6 +58,8 @@ export const StripeButton = React.forwardRef<HTMLButtonElement, StripeButtonProp
         tone = 'default',
         active,
         className,
+        size = 'icon',
+        stretch = true,
         ...props
     },
     ref
@@ -70,12 +74,13 @@ export const StripeButton = React.forwardRef<HTMLButtonElement, StripeButtonProp
         <Button
             {...props}
             ref={ref}
-            size="icon"
+            size={size}
             variant="noShadow"
             aria-label={label}
             title={label}
             className={cn(
-                'w-full flex-1 min-h-12 border-2 shadow-shadow transition-transform hover:-translate-y-px',
+                'w-full border-2 shadow-shadow transition-transform hover:-translate-y-px',
+                stretch ? 'flex-1 min-h-12' : 'flex-none min-h-12',
                 toneClasses[tone],
                 active ? 'ring-2 ring-offset-2 ring-main ring-offset-gray-900' : 'ring-0',
                 className,
@@ -93,25 +98,31 @@ type OverlayButton = {
     onClick: () => void;
     disabled?: boolean;
     active?: boolean;
+    stretch?: boolean;
+    size?: React.ComponentProps<typeof Button>['size'];
+    className?: string;
 };
 
 interface SideButtonOverlayProps {
     buttons: OverlayButton[];
     side?: 'left' | 'right';
     className?: string;
+    fitContent?: boolean;
+    maxWidthPercent?: number;
 }
 
 export const SideButtonOverlay = React.forwardRef<HTMLDivElement, SideButtonOverlayProps>(
-    ({ buttons, side = 'left', className }, ref) => {
+    ({ buttons, side = 'left', className, fitContent = false, maxWidthPercent = 50 }, ref) => {
         return (
             <div
                 ref={ref}
                 className={cn(
                     'pointer-events-auto absolute top-0 bottom-0 z-50 flex flex-col gap-0 border-2 border-border bg-gray-900 px-0 py-3 sm:py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
-                    'w-16 sm:w-20',
+                    fitContent ? 'w-auto min-w-[4rem] sm:min-w-[5rem] max-w-[50vw]' : 'w-16 sm:w-20',
                     side === 'left' ? 'left-0' : 'right-0',
                     className,
                 )}
+                style={fitContent ? { maxWidth: `${maxWidthPercent}vw` } : undefined}
             >
                 {buttons.map((btn) => (
                     <StripeButton
@@ -121,6 +132,9 @@ export const SideButtonOverlay = React.forwardRef<HTMLDivElement, SideButtonOver
                         onClick={btn.onClick}
                         disabled={btn.disabled}
                         active={btn.active}
+                        stretch={btn.stretch}
+                        size={btn.size}
+                        className={btn.className}
                     />
                 ))}
             </div>
