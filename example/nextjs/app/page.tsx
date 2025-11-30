@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import type React from 'react';
 import dynamic from 'next/dynamic';
 import type { RendererType, TtydHandle } from 'react-ttyd';
 import { Button } from '@/components/ui/button';
@@ -10,7 +11,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Bot, Power, Eraser, SquareX, ListRestart, Command, ArrowDownUp } from 'lucide-react';
+import {
+    Bot,
+    Power,
+    SquareX,
+    ListRestart,
+    Command,
+    ArrowDownUp,
+    ChevronsUp,
+    ChevronsDown,
+    ArrowUp,
+    ArrowDown,
+    Copy,
+} from 'lucide-react';
 import { StripeButtonBar, StripeButton, SideButtonOverlay } from '@/components/stripe-button-bar';
 import { commandPresets, type CommandPreset, type CommandStep } from './configure';
 
@@ -50,6 +63,7 @@ export default function Home() {
     const [pasteText, setPasteText] = useState('');
     const [isWindowPickerOpen, setIsWindowPickerOpen] = useState(false);
     const [isCommandPickerOpen, setIsCommandPickerOpen] = useState(false);
+    const [scrollMode, setScrollMode] = useState(false);
     const [options] = useState({
         wsUrl: 'wss://dev-remote-machine-1.tail83108.ts.net:4003/ws',
         rendererType: 'webgl' as RendererType,
@@ -61,6 +75,53 @@ export default function Home() {
     const windowPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
     const commandPickerRef = useRef<HTMLDivElement | null>(null);
     const commandPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const PAGE_UP = '\x1b[5~';
+    const PAGE_DOWN = '\x1b[6~';
+    const LINE_UP = '\x1b[A';
+    const LINE_DOWN = '\x1b[B';
+    const ESC = '\x1b';
+    const repeatIntervalRef = useRef<number | null>(null);
+    const suppressClickRef = useRef(false);
+
+    const stopRepeat = useCallback(() => {
+        if (repeatIntervalRef.current !== null) {
+            window.clearInterval(repeatIntervalRef.current);
+            repeatIntervalRef.current = null;
+        }
+    }, []);
+
+    const makeRepeatHandlers = (fn: () => void) => ({
+        onMouseDown: (event: React.MouseEvent) => {
+            event.preventDefault();
+            suppressClickRef.current = true;
+            fn();
+            stopRepeat();
+            repeatIntervalRef.current = window.setInterval(fn, 120);
+        },
+        onMouseUp: () => {
+            stopRepeat();
+            // leave suppressClickRef true so the ensuing click is ignored
+        },
+        onMouseLeave: () => {
+            stopRepeat();
+            // leave suppressClickRef true so the ensuing click is ignored
+        },
+        onTouchStart: (event: React.TouchEvent) => {
+            event.preventDefault();
+            suppressClickRef.current = true;
+            fn();
+            stopRepeat();
+            repeatIntervalRef.current = window.setInterval(fn, 120);
+        },
+        onTouchEnd: () => {
+            stopRepeat();
+            // leave suppressClickRef true so the ensuing click is ignored
+        },
+        onTouchCancel: () => {
+            stopRepeat();
+            // leave suppressClickRef true so the ensuing click is ignored
+        },
+    });
 
     const disconnect = () => {
         if (connectionStatus !== 'connected') return;
@@ -148,14 +209,6 @@ export default function Home() {
         }
     };
 
-    const handleClearScreen = () => {
-        terminalRef.current?.execute('clear');
-    };
-
-    const handleInterrupt = () => {
-        terminalRef.current?.sendInput('\x03');
-    };
-
     const handleSelectWindow = (index: number) => {
         console.log('tmux switch send', index);
         const CTRL_B = '\x02';
@@ -165,6 +218,32 @@ export default function Home() {
             terminalRef.current?.sendInput(String(index));
         }, 50);
         setIsWindowPickerOpen(false);
+    };
+
+    const enterScrollMode = () => {
+        setScrollMode(true);
+        terminalRef.current?.sendInput(PAGE_UP);
+    };
+
+    const handlePageUp = () => {
+        terminalRef.current?.sendInput(PAGE_UP);
+    };
+
+    const handlePageDown = () => {
+        terminalRef.current?.sendInput(PAGE_DOWN);
+    };
+
+    const handleLineUp = () => {
+        terminalRef.current?.sendInput(LINE_UP);
+    };
+
+    const handleLineDown = () => {
+        terminalRef.current?.sendInput(LINE_DOWN);
+    };
+
+    const exitScrollMode = () => {
+        terminalRef.current?.sendInput(ESC);
+        setScrollMode(false);
     };
 
     const handleReconnect = () => {
@@ -200,9 +279,11 @@ export default function Home() {
         return () => window.removeEventListener('mousedown', handleClick);
     }, [isWindowPickerOpen, isCommandPickerOpen]);
 
+    useEffect(() => () => stopRepeat(), [stopRepeat]);
+
     const isConnected = connectionStatus === 'connected';
 
-    const stripeButtons = [
+    const normalButtons = [
         {
             key: 'disconnect',
             label: 'Disconnect',
@@ -212,12 +293,11 @@ export default function Home() {
             disabled: !isConnected,
         },
         {
-            key: 'clear',
-            label: 'Clear screen',
-            icon: <Eraser className="h-4 w-4" />,
-            onClick: handleClearScreen,
+            key: 'scroll-mode',
+            label: 'Scroll mode',
+            icon: <ChevronsUp className="h-4 w-4" />,
+            onClick: enterScrollMode,
             tone: 'muted' as const,
-            disabled: !isConnected,
         },
         {
             key: 'ctrl-g',
@@ -240,6 +320,73 @@ export default function Home() {
             label: 'ESC',
             icon: <span className="text-xs font-bold">ESC</span>,
             onClick: () => terminalRef.current?.sendInput('\x1b'),
+            tone: 'muted' as const,
+        },
+    ];
+
+    const scrollButtons = [
+        {
+            key: 'page-up',
+            label: 'Page Up',
+            icon: (
+                <div className="flex items-center gap-1">
+                    <Copy className="h-3 w-3" />
+                    <ChevronsUp className="h-4 w-4" />
+                </div>
+            ),
+            onClick: handlePageUp,
+            tone: 'muted' as const,
+            repeatable: true,
+        },
+        {
+            key: 'page-down',
+            label: 'Page Down',
+            icon: (
+                <div className="flex items-center gap-1">
+                    <Copy className="h-3 w-3" />
+                    <ChevronsDown className="h-4 w-4" />
+                </div>
+            ),
+            onClick: handlePageDown,
+            tone: 'muted' as const,
+            repeatable: true,
+        },
+        {
+            key: 'line-up',
+            label: 'Line Up',
+            icon: (
+                <div className="flex items-center gap-1">
+                    <Copy className="h-3 w-3" />
+                    <ArrowUp className="h-4 w-4" />
+                </div>
+            ),
+            onClick: handleLineUp,
+            tone: 'muted' as const,
+            repeatable: true,
+        },
+        {
+            key: 'line-down',
+            label: 'Line Down',
+            icon: (
+                <div className="flex items-center gap-1">
+                    <Copy className="h-3 w-3" />
+                    <ArrowDown className="h-4 w-4" />
+                </div>
+            ),
+            onClick: handleLineDown,
+            tone: 'muted' as const,
+            repeatable: true,
+        },
+        {
+            key: 'scroll-escape',
+            label: 'Escape',
+            icon: (
+                <div className="flex items-center gap-1">
+                    <Copy className="h-3 w-3" />
+                    <SquareX className="h-4 w-4" />
+                </div>
+            ),
+            onClick: exitScrollMode,
             tone: 'muted' as const,
         },
     ];
@@ -394,30 +541,47 @@ export default function Home() {
                             }}
                             disabled={!isConnected}
                         />
-                        <StripeButton
-                            label="Command presets"
-                            icon={<Command className="h-4 w-4" />}
-                            ref={commandPickerTriggerRef}
-                            onClick={() => {
-                                setIsWindowPickerOpen(false);
-                                setIsCommandPickerOpen(!isCommandPickerOpen);
-                            }}
-                            disabled={!isConnected}
-                        />
-                        {stripeButtons.map((action) => (
+                        {!scrollMode && (
+                            <StripeButton
+                                label="Command presets"
+                                icon={<Command className="h-4 w-4" />}
+                                ref={commandPickerTriggerRef}
+                                onClick={() => {
+                                    setIsWindowPickerOpen(false);
+                                    setIsCommandPickerOpen(!isCommandPickerOpen);
+                                }}
+                                disabled={!isConnected}
+                            />
+                        )}
+                        {(scrollMode ? scrollButtons : normalButtons).map((action) => (
                             <StripeButton
                                 key={action.key}
-                            label={action.label}
-                            icon={action.icon}
-                            tone={action.tone}
-                            active={action.active}
-                            disabled={action.disabled}
-                            onClick={() => {
-                                setIsWindowPickerOpen(false);
-                                action.onClick();
-                            }}
-                        />
-                    ))}
+                                label={action.label}
+                                icon={action.icon}
+                                tone={action.tone}
+                                active={action.active}
+                                disabled={action.disabled}
+                                onClick={
+                                    () => {
+                                        // If a mouse/touch repeat just fired, skip this click to avoid double-send.
+                                        if (action.repeatable && suppressClickRef.current) {
+                                            suppressClickRef.current = false;
+                                            return;
+                                        }
+                                        setIsWindowPickerOpen(false);
+                                        setIsCommandPickerOpen(false);
+                                        action.onClick();
+                                    }
+                                }
+                                {...(action.repeatable
+                                    ? makeRepeatHandlers(() => {
+                                        setIsWindowPickerOpen(false);
+                                        setIsCommandPickerOpen(false);
+                                        action.onClick();
+                                    })
+                                    : {})}
+                            />
+                        ))}
                 </StripeButtonBar>
             </div>
         </div>

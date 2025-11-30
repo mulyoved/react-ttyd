@@ -35,6 +35,7 @@ export interface XtermOptions {
   onData?: (data: string) => void;
 }
 
+/* eslint-disable @typescript-eslint/no-duplicate-enum-values */
 export enum TtydTerminal {
   // Control characters (0x00-0x1F)
   NUL = '\x00', // Null
@@ -110,5 +111,6 @@ export enum TtydTerminal {
   SPACE = '\x20',
   DELETE = '\x7F',
 }
+/* eslint-enable @typescript-eslint/no-duplicate-enum-values */
 
 export type { ITerminalOptions, ITheme };
