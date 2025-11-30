@@ -17,7 +17,9 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build",
     "dev:example": "rollup -c && cd example/nextjs && npm run dev",
-    "dev:example:vite": "rollup -c && cd example/vite && npm run dev"
+    "dev:example:vite": "rollup -c && cd example/vite && npm run dev",
+    "ttyd": "ttyd -i 0.0.0.0 --writable bash",
+    "dev:all": "ttyd -i 0.0.0.0 --writable bash & cd example/nextjs && npm run dev -- -H 0.0.0.0"
   },
   "keywords": [
     "react",
