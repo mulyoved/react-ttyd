@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Github, Zap, Bot, ChevronDown, ChevronUp, Power, Eraser, SquareX, ListRestart, Command, ArrowDownUp } from 'lucide-react';
+import { Github, Zap, Bot, ChevronDown, ChevronUp, Eraser, Command, ArrowDownUp, ArrowBigRightDash, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
@@ -52,7 +52,6 @@ export default function Home() {
     const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
     const [outputLog, setOutputLog] = useState<string[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isWindowPickerOpen, setIsWindowPickerOpen] = useState(false);
     const [isCommandPickerOpen, setIsCommandPickerOpen] = useState(false);
     const [commandInput, setCommandInput] = useState('');
     const [pasteText, setPasteText] = useState('');
@@ -64,8 +63,16 @@ export default function Home() {
         username: '',
         password: '',
     });
-    const windowPickerRef = useRef<HTMLDivElement | null>(null);
-    const windowPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const [tmuxWindows] = useState<number[]>(() => {
+        if (typeof window === 'undefined') return [0, 1, 2, 3, 4];
+        const param = new URLSearchParams(window.location.search).get('tmuxWindows');
+        const parsed = param
+            ?.split(',')
+            .map((value) => parseInt(value.trim(), 10))
+            .filter((num) => !Number.isNaN(num));
+        return parsed && parsed.length > 0 ? parsed : [0, 1, 2, 3, 4];
+    });
+    const [tmuxCycleIndex, setTmuxCycleIndex] = useState(0);
     const commandPickerRef = useRef<HTMLDivElement | null>(null);
     const commandPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
     const [formState, setFormState] = useState({
@@ -199,15 +206,42 @@ export default function Home() {
         terminalRef.current?.sendInput('\x03');
     };
 
-    const handleSelectWindow = (index: number) => {
+    const handleSelectWindow = useCallback((index: number) => {
         console.log('tmux switch send', index);
-        const CTRL_B = '\x02';
-        terminalRef.current?.sendInput(CTRL_B);
-        setTimeout(() => {
-            terminalRef.current?.sendInput(String(index));
-        }, 50);
-        setIsWindowPickerOpen(false);
-    };
+        const term = terminalRef.current;
+        if (!term) return;
+
+        // Ctrl+B + digits was timing-unstable (could leak digits to the pane); we rely on prefixless
+        // tmux bindings on function keys instead. Ensure tmux maps F1-F9 -> windows 1-9 and F10 -> 0.
+        const fnSequences: Record<number, string> = {
+            1: "\u001bOP",   // F1
+            2: "\u001bOQ",   // F2
+            3: "\u001bOR",   // F3
+            4: "\u001bOS",   // F4
+            5: "\u001b[15~", // F5
+            6: "\u001b[17~", // F6
+            7: "\u001b[18~", // F7
+            8: "\u001b[19~", // F8
+            9: "\u001b[20~", // F9
+            0: "\u001b[21~", // F10
+        };
+
+        const seq = fnSequences[index];
+        if (seq) {
+            term.sendInput(seq);
+            return;
+        }
+    }, []);
+
+    const cycleTmuxWindow = useCallback(() => {
+        if (!terminalRef.current || tmuxWindows.length === 0) return;
+        setTmuxCycleIndex((prev) => {
+            const targetIdx = prev % tmuxWindows.length;
+            const targetWindow = tmuxWindows[targetIdx];
+            handleSelectWindow(targetWindow);
+            return (targetIdx + 1) % tmuxWindows.length;
+        });
+    }, [handleSelectWindow, tmuxWindows]);
 
     const handleReconnect = () => {
         if (connectionStatus === 'connected') {
@@ -228,34 +262,25 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
-        if (!isWindowPickerOpen && !isCommandPickerOpen) return;
+        if (!isCommandPickerOpen) return;
         const handleClick = (event: MouseEvent) => {
             const target = event.target as Node;
-            const insideWindowOverlay = windowPickerRef.current?.contains(target);
-            const insideWindowTrigger = windowPickerTriggerRef.current?.contains(target);
             const insideCommandOverlay = commandPickerRef.current?.contains(target);
             const insideCommandTrigger = commandPickerTriggerRef.current?.contains(target);
 
-            if (insideWindowOverlay || insideWindowTrigger || insideCommandOverlay || insideCommandTrigger) return;
+            if (insideCommandOverlay || insideCommandTrigger) return;
 
-            setIsWindowPickerOpen(false);
             setIsCommandPickerOpen(false);
         };
         window.addEventListener('mousedown', handleClick);
         return () => window.removeEventListener('mousedown', handleClick);
-    }, [isWindowPickerOpen, isCommandPickerOpen]);
+    }, [isCommandPickerOpen]);
 
     const isConnected = connectionStatus === 'connected';
 
+    const nextTmuxWindow = tmuxWindows.length ? tmuxWindows[tmuxCycleIndex % tmuxWindows.length] : undefined;
+
     const stripeButtons = [
-        {
-            key: 'disconnect',
-            label: 'Disconnect',
-            icon: <Power className="h-4 w-4" />,
-            onClick: disconnect,
-            tone: 'danger' as const,
-            disabled: !isConnected,
-        },
         {
             key: 'clear',
             label: 'Clear screen',
@@ -483,32 +508,30 @@ export default function Home() {
                             onData={handleData}
                         />
                     </div>
-                    {isWindowPickerOpen && (
-                        <SideButtonOverlay
-                            ref={windowPickerRef}
-                            buttons={[0, 1, 2, 3, 4].map((num) => ({
-                                key: `win-left-${num}`,
-                                label: `Window ${num}`,
-                                icon: <span className="text-xs font-mono leading-none">{num}</span>,
-                                onClick: () => handleSelectWindow(num),
-                                disabled: !isConnected,
-                            }))}
-                            side="left"
-                        />
-                    )}
                     {isCommandPickerOpen && (
                         <SideButtonOverlay
                             ref={commandPickerRef}
-                        buttons={commandPresets.map((cmd) => ({
-                            key: `cmd-${cmd.label}`,
-                            label: cmd.label,
-                            icon: <span className="text-sm font-mono leading-none">{cmd.label}</span>,
-                            onClick: () => handleSelectCommand(cmd),
-                            disabled: !isConnected,
-                            stretch: false,
-                            size: 'default',
-                            className: 'justify-start px-3',
-                        }))}
+                        buttons={[
+                            ...commandPresets.map((cmd) => ({
+                                key: `cmd-${cmd.label}`,
+                                label: cmd.label,
+                                icon: <span className="text-sm font-mono leading-none">{cmd.label}</span>,
+                                onClick: () => handleSelectCommand(cmd),
+                                disabled: !isConnected,
+                                stretch: false,
+                                size: 'default',
+                                className: 'justify-start px-3',
+                            })),
+                            {
+                                key: 'cmd-close',
+                                label: 'Close list',
+                                icon: <X className="h-4 w-4" />,
+                                onClick: () => setIsCommandPickerOpen(false),
+                                stretch: false,
+                                size: 'default' as const,
+                                className: 'justify-start px-3',
+                            },
+                        ]}
                             side="left"
                             fitContent
                         />
@@ -517,12 +540,11 @@ export default function Home() {
                         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                             <DialogTrigger asChild>
                                 <StripeButton
-                                    label="Terminal Commander"
-                                    icon={<Bot className="h-4 w-4" />}
-                                    disabled={!isConnected}
-                                    onClick={() => setIsWindowPickerOpen(false)}
-                                />
-                            </DialogTrigger>
+                                label="Terminal Commander"
+                                icon={<Bot className="h-4 w-4" />}
+                                disabled={!isConnected}
+                            />
+                        </DialogTrigger>
                             <DialogContent className="sm:max-w-[525px]">
                                 <DialogHeader>
                                     <DialogTitle>Terminal Commander</DialogTitle>
@@ -604,12 +626,15 @@ export default function Home() {
                             </DialogContent>
                         </Dialog>
                         <StripeButton
-                            label="Switch tmux window"
-                            icon={<ListRestart className="h-4 w-4" />}
-                            ref={windowPickerTriggerRef}
+                            label={
+                                nextTmuxWindow !== undefined
+                                    ? `Switch tmux window (${nextTmuxWindow})`
+                                    : 'Switch tmux window'
+                            }
+                            icon={<ArrowBigRightDash className="h-4 w-4" />}
                             onClick={() => {
                                 setIsCommandPickerOpen(false);
-                                setIsWindowPickerOpen(!isWindowPickerOpen);
+                                cycleTmuxWindow();
                             }}
                             disabled={!isConnected}
                         />
@@ -618,7 +643,6 @@ export default function Home() {
                             icon={<Command className="h-4 w-4" />}
                             ref={commandPickerTriggerRef}
                             onClick={() => {
-                                setIsWindowPickerOpen(false);
                                 setIsCommandPickerOpen(!isCommandPickerOpen);
                             }}
                             disabled={!isConnected}
@@ -632,7 +656,6 @@ export default function Home() {
                                 active={action.active}
                                 disabled={action.disabled}
                                 onClick={() => {
-                                    setIsWindowPickerOpen(false);
                                     action.onClick();
                                 }}
                             />

@@ -374,6 +374,18 @@ export class Xterm {
     overlayAddon.show("Connection Closed");
     this.dispose();
 
+    const showReconnectPrompt = (message = "Reconnect to session") => {
+      overlayAddon.showAction(message, "Reconnect", () => {
+        overlayAddon.show("Reconnecting...");
+        this.refreshToken()
+          .then(() => this.connect())
+          .catch((e) => {
+            console.error(`[react-ttyd] error refreshing token: ${e}`);
+            showReconnectPrompt("Reconnect failed. Try again?");
+          });
+      });
+    };
+
     // 1000: CLOSE_NORMAL
     if (event.code !== 1000 && doReconnect) {
       overlayAddon.show("Reconnecting...");
@@ -381,26 +393,12 @@ export class Xterm {
         .then(() => this.connect())
         .catch((e) => {
           console.error(`[react-ttyd] error refreshing token: ${e}`);
-          overlayAddon.show("Press ⏎ to Reconnect");
+          showReconnectPrompt();
         });
     } else if (this.closeOnDisconnect) {
       window.close();
     } else {
-      const { terminal } = this;
-      const keyDispose = terminal.onKey((e) => {
-        const event = e.domEvent;
-        if (event.key === "Enter") {
-          keyDispose.dispose();
-          overlayAddon.show("Reconnecting...");
-          this.refreshToken()
-            .then(() => this.connect())
-            .catch((e) => {
-              console.error(`[react-ttyd] error refreshing token: ${e}`);
-              overlayAddon.show("Press ⏎ to Reconnect");
-            });
-        }
-      });
-      overlayAddon.show("Press ⏎ to Reconnect");
+      showReconnectPrompt();
     }
   };
 

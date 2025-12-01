@@ -60,4 +60,18 @@ export const commandPresets: CommandPreset[] = [
             { type: 'enter' },
         ],
     },
+    {
+        label: '/work-step-by-step',
+        steps: [
+            { type: 'text', data: '/work-step-by-step' },
+            { type: 'enter' },
+        ],
+    },
+    {
+        label: '/compact',
+        steps: [
+            { type: 'text', data: '/compact' },
+            { type: 'enter' },
+        ],
+    },
 ];
