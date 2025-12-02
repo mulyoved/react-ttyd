@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -21,6 +21,10 @@ import {
     ArrowUp,
     ArrowDown,
     Copy,
+    Ellipsis,
+    Settings,
+    ClipboardPaste,
+    WifiSync,
     X,
 } from 'lucide-react';
 import { StripeButtonBar, StripeButton, SideButtonOverlay } from '@/components/stripe-button-bar';
@@ -61,8 +65,10 @@ export default function Home() {
     const [commandInput, setCommandInput] = useState('');
     const [pasteText, setPasteText] = useState('');
     const [isCommandPickerOpen, setIsCommandPickerOpen] = useState(false);
+    const [isAdvancedMenuOpen, setIsAdvancedMenuOpen] = useState(false);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [scrollMode, setScrollMode] = useState(false);
-    const [tmuxWindows] = useState<number[]>(() => {
+    const [tmuxWindows, setTmuxWindows] = useState<number[]>(() => {
         if (typeof window === 'undefined') return [0, 1, 2, 3, 4];
         const param = new URLSearchParams(window.location.search).get('tmuxWindows');
         const parsed = param
@@ -81,6 +87,16 @@ export default function Home() {
     });
     const commandPickerRef = useRef<HTMLDivElement | null>(null);
     const commandPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const advancedMenuRef = useRef<HTMLDivElement | null>(null);
+    const advancedTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const [settingsChecked, setSettingsChecked] = useState<Record<number, boolean>>({
+        0: true,
+        1: true,
+        2: true,
+        3: true,
+        4: true,
+    });
+    const [extraWindowsInput, setExtraWindowsInput] = useState('');
     const PAGE_UP = '\x1b[5~';
     const PAGE_DOWN = '\x1b[6~';
     const LINE_UP = '\x1b[A';
@@ -300,23 +316,64 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
-        if (!isCommandPickerOpen) return;
+        if (!isCommandPickerOpen && !isAdvancedMenuOpen) return;
         const handleClick = (event: MouseEvent) => {
             const target = event.target as Node;
             const insideCommandOverlay = commandPickerRef.current?.contains(target);
             const insideCommandTrigger = commandPickerTriggerRef.current?.contains(target);
+            const insideAdvancedOverlay = advancedMenuRef.current?.contains(target);
+            const insideAdvancedTrigger = advancedTriggerRef.current?.contains(target);
 
-            if (insideCommandOverlay || insideCommandTrigger) return;
+            if (insideCommandOverlay || insideCommandTrigger || insideAdvancedOverlay || insideAdvancedTrigger) return;
 
             setIsCommandPickerOpen(false);
+            setIsAdvancedMenuOpen(false);
         };
         window.addEventListener('mousedown', handleClick);
         return () => window.removeEventListener('mousedown', handleClick);
-    }, [isCommandPickerOpen]);
+    }, [isCommandPickerOpen, isAdvancedMenuOpen]);
 
     useEffect(() => () => stopRepeat(), [stopRepeat]);
 
     const isConnected = connectionStatus === 'connected';
+    const nextTmuxWindow = tmuxWindows.length ? tmuxWindows[tmuxCycleIndex % tmuxWindows.length] : undefined;
+
+    const updateUrlWindows = (windows: number[]) => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        params.set('tmuxWindows', windows.join(','));
+        const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+        window.history.replaceState(null, '', newUrl);
+    };
+
+    const openSettingsDialog = () => {
+        const baseChecked: Record<number, boolean> = { 0: false, 1: false, 2: false, 3: false, 4: false };
+        tmuxWindows.forEach((w) => {
+            if (baseChecked[w as keyof typeof baseChecked] !== undefined) {
+                baseChecked[w as keyof typeof baseChecked] = true;
+            }
+        });
+        setSettingsChecked(baseChecked);
+        const extras = tmuxWindows.filter((w) => w < 0 || w > 4);
+        setExtraWindowsInput(extras.join(','));
+        setIsSettingsOpen(true);
+    };
+
+    const handleSaveWindows = () => {
+        const selected = Object.entries(settingsChecked)
+            .filter(([, checked]) => checked)
+            .map(([k]) => parseInt(k, 10));
+        const extras = extraWindowsInput
+            .split(',')
+            .map((v) => parseInt(v.trim(), 10))
+            .filter((n) => !Number.isNaN(n));
+        const merged = Array.from(new Set([...selected, ...extras])).sort((a, b) => a - b);
+        const windows = merged.length > 0 ? merged : [0];
+        setTmuxWindows(windows);
+        setTmuxCycleIndex(0);
+        updateUrlWindows(windows);
+        setIsSettingsOpen(false);
+    };
 
     const normalButtons = [
         {
@@ -327,10 +384,32 @@ export default function Home() {
             tone: 'muted' as const,
         },
         {
+            key: 'switch-window',
+            label:
+                nextTmuxWindow !== undefined
+                    ? `Switch tmux window (${nextTmuxWindow})`
+                    : 'Switch tmux window',
+            icon: <ArrowBigRightDash className="h-4 w-4" />,
+            onClick: () => {
+                setIsCommandPickerOpen(false);
+                cycleTmuxWindow();
+            },
+            tone: 'muted' as const,
+            disabled: !isConnected,
+        },
+        {
             key: 'ctrl-g',
             label: 'Ctrl+G',
             icon: <ArrowRightLeft className="h-4 w-4" />,
             onClick: () => terminalRef.current?.sendInput('\x07'),
+            tone: 'muted' as const,
+            disabled: !isConnected,
+        },
+        {
+            key: 'cmd-presets',
+            label: 'Command presets',
+            icon: <Command className="h-4 w-4" />,
+            onClick: () => setIsCommandPickerOpen(!isCommandPickerOpen),
             tone: 'muted' as const,
             disabled: !isConnected,
         },
@@ -349,9 +428,28 @@ export default function Home() {
             onClick: () => terminalRef.current?.sendInput('\x1b'),
             tone: 'muted' as const,
         },
+        {
+            key: 'paste',
+            label: 'Paste',
+            icon: <ClipboardPaste className="h-4 w-4" />,
+            onClick: () => {
+                if (!isConnected) return;
+                setIsDialogOpen(true);
+            },
+            tone: 'muted' as const,
+            disabled: !isConnected,
+        },
+        {
+            key: 'advanced',
+            label: 'Advanced',
+            icon: <Ellipsis className="h-4 w-4" />,
+            onClick: () => {
+                setIsCommandPickerOpen(false);
+                setIsAdvancedMenuOpen(!isAdvancedMenuOpen);
+            },
+            tone: 'muted' as const,
+        },
     ];
-
-    const nextTmuxWindow = tmuxWindows.length ? tmuxWindows[tmuxCycleIndex % tmuxWindows.length] : undefined;
 
     const scrollButtons = [
         {
@@ -385,6 +483,32 @@ export default function Home() {
             onClick: handleLineDown,
             tone: 'muted' as const,
             repeatable: true,
+        },
+        {
+            key: 'fix',
+            label: 'fix',
+            icon: <span className="text-xs font-bold">fix</span>,
+            onClick: () => {
+                exitScrollMode();
+                setTimeout(() => {
+                    terminalRef.current?.sendInput('fix');
+                    setTimeout(() => terminalRef.current?.sendInput('\r'), 80);
+                }, 50);
+            },
+            tone: 'muted' as const,
+        },
+        {
+            key: 'skip',
+            label: 'skip',
+            icon: <span className="text-xs font-bold">skip</span>,
+            onClick: () => {
+                exitScrollMode();
+                setTimeout(() => {
+                    terminalRef.current?.sendInput('skip');
+                    setTimeout(() => terminalRef.current?.sendInput('\r'), 80);
+                }, 50);
+            },
+            tone: 'muted' as const,
         },
         {
             key: 'copy-selection',
@@ -450,59 +574,115 @@ export default function Home() {
                         fitContent
                     />
                 )}
+                {isAdvancedMenuOpen && (
+                    <SideButtonOverlay
+                        ref={advancedMenuRef}
+                        buttons={[
+                            {
+                                key: 'settings',
+                                label: 'Settings',
+                                icon: <Settings className="h-4 w-4" />,
+                                onClick: () => {
+                                    setIsAdvancedMenuOpen(false);
+                                    openSettingsDialog();
+                                },
+                                stretch: false,
+                                size: 'default',
+                                className: 'justify-start px-3',
+                            },
+                        ]}
+                        side="right"
+                        fitContent
+                    />
+                )}
                 <StripeButtonBar>
-                        <StripeButton
-                            label={
-                                nextTmuxWindow !== undefined
-                                    ? `Switch tmux window (${nextTmuxWindow})`
-                                    : 'Switch tmux window'
-                            }
-                            icon={<ArrowBigRightDash className="h-4 w-4" />}
-                            onClick={() => {
-                                setIsCommandPickerOpen(false);
-                                cycleTmuxWindow();
-                            }}
-                            disabled={!isConnected}
-                        />
-                        {!scrollMode && (
-                            <StripeButton
-                                label="Command presets"
-                                icon={<Command className="h-4 w-4" />}
-                                ref={commandPickerTriggerRef}
-                                onClick={() => {
-                                    setIsCommandPickerOpen(!isCommandPickerOpen);
-                                }}
-                                disabled={!isConnected}
-                            />
-                        )}
-                        {(scrollMode ? scrollButtons : normalButtons).map((action) => (
-                            <StripeButton
-                                key={action.key}
-                                label={action.label}
-                                icon={action.icon}
-                                tone={action.tone}
-                                active={action.active}
-                                disabled={action.disabled}
-                                onClick={
-                                    () => {
-                                        // If a mouse/touch repeat just fired, skip this click to avoid double-send.
-                                        if (action.repeatable && suppressClickRef.current) {
-                                            suppressClickRef.current = false;
-                                            return;
-                                        }
-                                        setIsCommandPickerOpen(false);
-                                        action.onClick();
+                    {isConnected ? (
+                        <>
+                            {(scrollMode ? scrollButtons : normalButtons).map((action) => (
+                                <StripeButton
+                                    key={action.key}
+                                    label={action.label}
+                                    icon={action.icon}
+                                    tone={action.tone}
+                                    active={action.active}
+                                    disabled={action.disabled}
+                                    ref={
+                                        action.key === 'cmd-presets'
+                                            ? commandPickerTriggerRef
+                                            : action.key === 'advanced'
+                                              ? advancedTriggerRef
+                                              : undefined
                                     }
-                                }
-                                {...(action.repeatable
-                                    ? makeRepeatHandlers(() => {
-                                        setIsCommandPickerOpen(false);
-                                        action.onClick();
-                                    })
-                                    : {})}
-                            />
-                        ))}
+                                    onClick={
+                                        () => {
+                                            // If a mouse/touch repeat just fired, skip this click to avoid double-send.
+                                            if (action.repeatable && suppressClickRef.current) {
+                                                suppressClickRef.current = false;
+                                                return;
+                                            }
+                                            setIsCommandPickerOpen(false);
+                                            action.onClick();
+                                        }
+                                    }
+                                    {...(action.repeatable
+                                        ? makeRepeatHandlers(() => {
+                                            setIsCommandPickerOpen(false);
+                                            action.onClick();
+                                        })
+                                        : {})}
+                                />
+                            ))}
+                        </>
+                    ) : (
+                        <StripeButton
+                            label="Reconnect"
+                            icon={<WifiSync className="h-5 w-5" />}
+                            onClick={handleReconnect}
+                        />
+                    )}
                 </StripeButtonBar>
+
+                <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                    <DialogContent className="sm:max-w-[420px]">
+                        <DialogHeader>
+                            <DialogTitle>Switch Window Settings</DialogTitle>
+                            <DialogDescription>
+                                Choose which tmux windows are cycled and add any extra window numbers (comma-separated).
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-3">
+                                {[0, 1, 2, 3, 4].map((num) => (
+                                    <label key={num} className="flex items-center gap-2 text-sm">
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(settingsChecked[num])}
+                                            onChange={(e) =>
+                                                setSettingsChecked((prev) => ({ ...prev, [num]: e.target.checked }))
+                                            }
+                                        />
+                                        <span>Window {num}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="extra-windows">Extra windows (comma separated)</Label>
+                                <Input
+                                    id="extra-windows"
+                                    value={extraWindowsInput}
+                                    onChange={(e) => setExtraWindowsInput(e.target.value)}
+                                    placeholder="e.g. 6,7,12"
+                                />
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button variant="neutral" onClick={() => setIsSettingsOpen(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleSaveWindows}>Save</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </div>
     );

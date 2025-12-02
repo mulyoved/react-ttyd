@@ -32,19 +32,23 @@ export const commandPresets: CommandPreset[] = [
             { type: 'enter', delayMs: 280 },
         ],
     },
-    // Shortcut for PR flow: /review then immediately choose first option (two Enters)
+    // Sends "/review", then navigates to the second menu option (Enter, ArrowDown, Enter).
     {
-        label: '/review pr',
+        label: '/review',
         steps: [
             { type: 'text', data: '/review' },
             { type: 'enter', delayMs: 280 },
+            { type: 'arrowDown', delayMs: 280 },
             { type: 'enter', delayMs: 280 },
         ],
     },
     // Parameterized: leaves cursor after the command with a trailing space so user can add args
     {
-        label: '/pr <branch|url>',
-        steps: [{ type: 'text', data: '/pr ' }],
+        label: '/pr',
+        steps: [
+            { type: 'text', data: '/pr' },
+            { type: 'enter' },
+        ],
     },
     {
         label: '/clear',
@@ -72,6 +76,26 @@ export const commandPresets: CommandPreset[] = [
         steps: [
             { type: 'text', data: '/compact' },
             { type: 'enter' },
+        ],
+    },
+    {
+        label: 'skip',
+        steps: [
+            { type: 'text', data: 'skip' },
+            { type: 'enter' },
+        ],
+    },
+    {
+        label: '/git:cc-fix-pr',
+        steps: [
+            { type: 'text', data: '/git:cc-fix-pr' },
+            { type: 'enter' },
+        ],
+    },
+    {
+        label: '/work-on-issue',
+        steps: [
+            { type: 'text', data: '/work-on-issue' },
         ],
     },
 ];
