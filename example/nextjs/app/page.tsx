@@ -20,10 +20,15 @@ import {
     ArrowBigDown,
     ArrowUp,
     ArrowDown,
+    ArrowLeft,
+    ArrowRight,
+    Home as HomeIcon,
+    CornerDownLeft,
     Copy,
     Ellipsis,
     Settings,
     ClipboardPaste,
+    Keyboard,
     WifiSync,
     X,
 } from 'lucide-react';
@@ -378,7 +383,7 @@ export default function Home() {
     const normalButtons = [
         {
             key: 'scroll-mode',
-            label: 'Scroll mode',
+            label: 'Scroll Navigation Bar',
             icon: <ArrowBigUp className="h-4 w-4" />,
             onClick: enterScrollMode,
             tone: 'muted' as const,
@@ -407,7 +412,7 @@ export default function Home() {
         },
         {
             key: 'cmd-presets',
-            label: 'Command presets',
+            label: 'Command Presets Panel',
             icon: <Command className="h-4 w-4" />,
             onClick: () => setIsCommandPickerOpen(!isCommandPickerOpen),
             tone: 'muted' as const,
@@ -429,19 +434,17 @@ export default function Home() {
             tone: 'muted' as const,
         },
         {
-            key: 'paste',
-            label: 'Paste',
-            icon: <ClipboardPaste className="h-4 w-4" />,
-            onClick: () => {
-                if (!isConnected) return;
-                setIsDialogOpen(true);
-            },
+            key: 'keyboard',
+            label: 'Main Actions Bar',
+            icon: <Keyboard className="h-4 w-4" />,
+            // Show pagination controls without sending Page Up
+            onClick: () => setScrollMode(true),
             tone: 'muted' as const,
             disabled: !isConnected,
         },
         {
             key: 'advanced',
-            label: 'Advanced',
+            label: 'Utilities Panel',
             icon: <Ellipsis className="h-4 w-4" />,
             onClick: () => {
                 setIsCommandPickerOpen(false);
@@ -452,6 +455,62 @@ export default function Home() {
     ];
 
     const scrollButtons = [
+        {
+            key: 'esc-key',
+            label: 'Esc',
+            icon: <span className="text-xs font-bold">ESC</span>,
+            onClick: () => terminalRef.current?.sendInput('\x1b'),
+            tone: 'muted' as const,
+        },
+        {
+            key: 'ctrl-c',
+            label: 'Ctrl+C',
+            icon: <span className="text-xs font-bold">Ctrl+C</span>,
+            onClick: () => terminalRef.current?.sendInput('\x03'),
+            tone: 'muted' as const,
+        },
+        {
+            key: 'tab',
+            label: 'Tab',
+            icon: <span className="text-xs font-bold">Tab</span>,
+            onClick: () => terminalRef.current?.sendInput('\t'),
+            tone: 'muted' as const,
+        },
+        {
+            key: 'enter',
+            label: 'Enter',
+            icon: <CornerDownLeft className="h-4 w-4" />,
+            onClick: () => terminalRef.current?.sendInput('\r'),
+            tone: 'muted' as const,
+        },
+        {
+            key: 'arrow-left',
+            label: 'Left',
+            icon: <ArrowLeft className="h-4 w-4" />,
+            onClick: () => terminalRef.current?.sendInput('\x1b[D'),
+            tone: 'muted' as const,
+        },
+        {
+            key: 'arrow-right',
+            label: 'Right',
+            icon: <ArrowRight className="h-4 w-4" />,
+            onClick: () => terminalRef.current?.sendInput('\x1b[C'),
+            tone: 'muted' as const,
+        },
+        {
+            key: 'home',
+            label: 'Home',
+            icon: <HomeIcon className="h-4 w-4" />,
+            onClick: () => terminalRef.current?.sendInput('\x1b[H'),
+            tone: 'muted' as const,
+        },
+        {
+            key: 'end',
+            label: 'End',
+            icon: <span className="text-xs font-bold">End</span>,
+            onClick: () => terminalRef.current?.sendInput('\x1b[F'),
+            tone: 'muted' as const,
+        },
         {
             key: 'page-up',
             label: 'Page Up',
@@ -485,6 +544,24 @@ export default function Home() {
             repeatable: true,
         },
         {
+            key: 'paste',
+            label: 'Paste',
+            icon: <ClipboardPaste className="h-4 w-4" />,
+            onClick: () => {
+                if (!isConnected) return;
+                setIsDialogOpen(true);
+            },
+            tone: 'muted' as const,
+            disabled: !isConnected,
+        },
+        {
+            key: 'copy-selection',
+            label: 'Copy',
+            icon: <Copy className="h-5 w-5" />,
+            onClick: handleCopySelection,
+            tone: 'muted' as const,
+        },
+        {
             key: 'fix',
             label: 'fix',
             icon: <span className="text-xs font-bold">fix</span>,
@@ -508,13 +585,6 @@ export default function Home() {
                     setTimeout(() => terminalRef.current?.sendInput('\r'), 80);
                 }, 50);
             },
-            tone: 'muted' as const,
-        },
-        {
-            key: 'copy-selection',
-            label: 'Copy',
-            icon: <Copy className="h-5 w-5" />,
-            onClick: handleCopySelection,
             tone: 'muted' as const,
         },
         {
@@ -562,7 +632,7 @@ export default function Home() {
                             })),
                             {
                                 key: 'cmd-close',
-                                label: 'Close list',
+                                label: 'Close Command Presets Panel',
                                 icon: <X className="h-4 w-4" />,
                                 onClick: () => setIsCommandPickerOpen(false),
                                 stretch: false,
@@ -580,7 +650,7 @@ export default function Home() {
                         buttons={[
                             {
                                 key: 'settings',
-                                label: 'Settings',
+                                label: 'Open Utilities Panel Settings',
                                 icon: <Settings className="h-4 w-4" />,
                                 onClick: () => {
                                     setIsAdvancedMenuOpen(false);
@@ -645,9 +715,9 @@ export default function Home() {
                 <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
                     <DialogContent className="sm:max-w-[420px]">
                         <DialogHeader>
-                            <DialogTitle>Switch Window Settings</DialogTitle>
+                            <DialogTitle>Utilities Panel Settings</DialogTitle>
                             <DialogDescription>
-                                Choose which tmux windows are cycled and add any extra window numbers (comma-separated).
+                                Configure which tmux windows are cycled and add any extra window numbers (comma-separated).
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
