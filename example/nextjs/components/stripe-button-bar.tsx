@@ -49,6 +49,7 @@ interface StripeButtonProps extends React.ComponentProps<typeof Button> {
     active?: boolean;
     size?: React.ComponentProps<typeof Button>['size'];
     stretch?: boolean;
+    shortLabel?: string;
 }
 
 export const StripeButton = React.forwardRef<HTMLButtonElement, StripeButtonProps>(function StripeButton(
@@ -60,6 +61,7 @@ export const StripeButton = React.forwardRef<HTMLButtonElement, StripeButtonProp
         className,
         size = 'icon',
         stretch = true,
+        shortLabel,
         ...props
     },
     ref
@@ -83,10 +85,16 @@ export const StripeButton = React.forwardRef<HTMLButtonElement, StripeButtonProp
                 stretch ? 'flex-1 min-h-12' : 'flex-none min-h-12',
                 toneClasses[tone],
                 active ? 'ring-2 ring-offset-2 ring-main ring-offset-gray-900' : 'ring-0',
+                shortLabel ? 'flex-col gap-0.5 py-1' : '',
                 className,
             )}
         >
             {icon}
+            {shortLabel && (
+                <span className="text-[8px] sm:text-[9px] leading-tight opacity-70 truncate max-w-full">
+                    {shortLabel}
+                </span>
+            )}
         </Button>
     );
 });
@@ -94,6 +102,7 @@ export const StripeButton = React.forwardRef<HTMLButtonElement, StripeButtonProp
 type OverlayButton = {
     key: string | number;
     label: string;
+    shortLabel?: string;
     icon: React.ReactNode;
     onClick: () => void;
     disabled?: boolean;
@@ -128,6 +137,7 @@ export const SideButtonOverlay = React.forwardRef<HTMLDivElement, SideButtonOver
                     <StripeButton
                         key={btn.key}
                         label={btn.label}
+                        shortLabel={btn.shortLabel}
                         icon={btn.icon}
                         onClick={btn.onClick}
                         disabled={btn.disabled}

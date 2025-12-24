@@ -5,10 +5,7 @@ import type React from 'react';
 import dynamic from 'next/dynamic';
 import type { RendererType, TtydHandle } from 'react-ttyd';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import {
@@ -26,7 +23,6 @@ import {
     CornerDownLeft,
     Copy,
     Ellipsis,
-    Settings,
     ClipboardPaste,
     Keyboard,
     WifiSync,
@@ -71,18 +67,8 @@ export default function Home() {
     const [pasteText, setPasteText] = useState('');
     const [isCommandPickerOpen, setIsCommandPickerOpen] = useState(false);
     const [isAdvancedMenuOpen, setIsAdvancedMenuOpen] = useState(false);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [scrollMode, setScrollMode] = useState(false);
-    const [tmuxWindows, setTmuxWindows] = useState<number[]>(() => {
-        if (typeof window === 'undefined') return [0, 1, 2, 3, 4];
-        const param = new URLSearchParams(window.location.search).get('tmuxWindows');
-        const parsed = param
-            ?.split(',')
-            .map((value) => parseInt(value.trim(), 10))
-            .filter((num) => !Number.isNaN(num));
-        return parsed && parsed.length > 0 ? parsed : [0, 1, 2, 3, 4];
-    });
-    const [tmuxCycleIndex, setTmuxCycleIndex] = useState(0);
+    const [currentWindow, setCurrentWindow] = useState<{ index: number; name: string; paneName: string } | null>(null);
     const [options] = useState({
         wsUrl: 'wss://dev-remote-machine-1.tail83108.ts.net:4003/ws',
         rendererType: 'webgl' as RendererType,
@@ -94,14 +80,6 @@ export default function Home() {
     const commandPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
     const advancedMenuRef = useRef<HTMLDivElement | null>(null);
     const advancedTriggerRef = useRef<HTMLButtonElement | null>(null);
-    const [settingsChecked, setSettingsChecked] = useState<Record<number, boolean>>({
-        0: true,
-        1: true,
-        2: true,
-        3: true,
-        4: true,
-    });
-    const [extraWindowsInput, setExtraWindowsInput] = useState('');
     const PAGE_UP = '\x1b[5~';
     const PAGE_DOWN = '\x1b[6~';
     const LINE_UP = '\x1b[A';
@@ -231,44 +209,6 @@ export default function Home() {
         }
     };
 
-    const handleSelectWindow = useCallback((index: number) => {
-        console.log('tmux switch send', index);
-        const term = terminalRef.current;
-        if (!term) return;
-
-        // IMPORTANT: Ctrl+B + digits proved timing-unstable with ttyd (digits could leak to the pane).
-        // To keep switching reliable we rely on prefixless tmux bindings mapped to function keys.
-        // Please ensure tmux has F1-F9 bound to windows 1-9 and F10 bound to window 0.
-        const fnSequences: Record<number, string> = {
-            1: "\u001bOP",   // F1
-            2: "\u001bOQ",   // F2
-            3: "\u001bOR",   // F3
-            4: "\u001bOS",   // F4
-            5: "\u001b[15~", // F5
-            6: "\u001b[17~", // F6
-            7: "\u001b[18~", // F7
-            8: "\u001b[19~", // F8
-            9: "\u001b[20~", // F9
-            0: "\u001b[21~", // F10
-        };
-
-        const seq = fnSequences[index];
-        if (seq) {
-            term.sendInput(seq);
-            return;
-        }
-    }, []);
-
-    const cycleTmuxWindow = useCallback(() => {
-        if (!terminalRef.current || tmuxWindows.length === 0) return;
-        setTmuxCycleIndex((prev) => {
-            const targetIdx = prev % tmuxWindows.length;
-            const targetWindow = tmuxWindows[targetIdx];
-            handleSelectWindow(targetWindow);
-            return (targetIdx + 1) % tmuxWindows.length;
-        });
-    }, [handleSelectWindow, tmuxWindows]);
-
     const enterScrollMode = () => {
         setScrollMode(true);
         terminalRef.current?.sendInput(PAGE_UP);
@@ -313,6 +253,36 @@ export default function Home() {
         setConnectionKey(prev => prev + 1);
     };
 
+    const fetchTmuxStatus = useCallback(async () => {
+        try {
+            const res = await fetch('/api/tmux-status');
+            if (res.ok) {
+                const data = await res.json();
+                setCurrentWindow({
+                    index: data.windowIndex,
+                    name: data.windowName,
+                    paneName: data.paneName,
+                });
+            }
+        } catch {
+            // Silently fail - tmux might not be available
+        }
+    }, []);
+
+    const handleNextWindow = useCallback(() => {
+        terminalRef.current?.sendInput('\x1b[1;5C');  // Ctrl+Right
+        // Fetch status after a short delay to let tmux switch
+        setTimeout(fetchTmuxStatus, 100);
+    }, [fetchTmuxStatus]);
+
+    useEffect(() => {
+        // Fetch initial tmux status
+        fetchTmuxStatus();
+        // Poll every 2 seconds to keep it updated
+        const interval = setInterval(fetchTmuxStatus, 2000);
+        return () => clearInterval(interval);
+    }, [fetchTmuxStatus]);
+
     useEffect(() => {
         const timer = setTimeout(() => {
             window.dispatchEvent(new Event('resize'));
@@ -341,78 +311,38 @@ export default function Home() {
     useEffect(() => () => stopRepeat(), [stopRepeat]);
 
     const isConnected = connectionStatus === 'connected';
-    const nextTmuxWindow = tmuxWindows.length ? tmuxWindows[tmuxCycleIndex % tmuxWindows.length] : undefined;
-
-    const updateUrlWindows = (windows: number[]) => {
-        if (typeof window === 'undefined') return;
-        const params = new URLSearchParams(window.location.search);
-        params.set('tmuxWindows', windows.join(','));
-        const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
-        window.history.replaceState(null, '', newUrl);
-    };
-
-    const openSettingsDialog = () => {
-        const baseChecked: Record<number, boolean> = { 0: false, 1: false, 2: false, 3: false, 4: false };
-        tmuxWindows.forEach((w) => {
-            if (baseChecked[w as keyof typeof baseChecked] !== undefined) {
-                baseChecked[w as keyof typeof baseChecked] = true;
-            }
-        });
-        setSettingsChecked(baseChecked);
-        const extras = tmuxWindows.filter((w) => w < 0 || w > 4);
-        setExtraWindowsInput(extras.join(','));
-        setIsSettingsOpen(true);
-    };
-
-    const handleSaveWindows = () => {
-        const selected = Object.entries(settingsChecked)
-            .filter(([, checked]) => checked)
-            .map(([k]) => parseInt(k, 10));
-        const extras = extraWindowsInput
-            .split(',')
-            .map((v) => parseInt(v.trim(), 10))
-            .filter((n) => !Number.isNaN(n));
-        const merged = Array.from(new Set([...selected, ...extras])).sort((a, b) => a - b);
-        const windows = merged.length > 0 ? merged : [0];
-        setTmuxWindows(windows);
-        setTmuxCycleIndex(0);
-        updateUrlWindows(windows);
-        setIsSettingsOpen(false);
-    };
 
     const normalButtons = [
         {
             key: 'scroll-mode',
             label: 'Scroll Navigation Bar',
+            shortLabel: 'Scroll',
             icon: <ArrowBigUp className="h-4 w-4" />,
             onClick: enterScrollMode,
             tone: 'muted' as const,
         },
         {
-            key: 'switch-window',
-            label:
-                nextTmuxWindow !== undefined
-                    ? `Switch tmux window (${nextTmuxWindow})`
-                    : 'Switch tmux window',
+            key: 'next-window',
+            label: 'Next Active Window',
+            shortLabel: 'Window',
             icon: <ArrowBigRightDash className="h-4 w-4" />,
-            onClick: () => {
-                setIsCommandPickerOpen(false);
-                cycleTmuxWindow();
-            },
+            onClick: handleNextWindow,
             tone: 'muted' as const,
             disabled: !isConnected,
         },
         {
-            key: 'ctrl-g',
-            label: 'Ctrl+G',
+            key: 'cycle-pane',
+            label: 'Cycle Pane',
+            shortLabel: 'Pane',
             icon: <ArrowRightLeft className="h-4 w-4" />,
-            onClick: () => terminalRef.current?.sendInput('\x07'),
+            onClick: () => terminalRef.current?.sendInput('\x1b[1;5B'),  // Ctrl+Down
             tone: 'muted' as const,
             disabled: !isConnected,
         },
         {
             key: 'cmd-presets',
             label: 'Command Presets Panel',
+            shortLabel: 'Cmds',
             icon: <Command className="h-4 w-4" />,
             onClick: () => setIsCommandPickerOpen(!isCommandPickerOpen),
             tone: 'muted' as const,
@@ -421,6 +351,7 @@ export default function Home() {
         {
             key: 'enter',
             label: 'Enter',
+            shortLabel: 'Enter',
             icon: <span className="text-2xl font-bold leading-none">⏎</span>,
             onClick: () => terminalRef.current?.sendInput('\r'),
             tone: 'muted' as const,
@@ -429,6 +360,7 @@ export default function Home() {
         {
             key: 'escape',
             label: 'ESC',
+            shortLabel: 'Esc',
             icon: <span className="text-xs font-bold">ESC</span>,
             onClick: () => terminalRef.current?.sendInput('\x1b'),
             tone: 'muted' as const,
@@ -436,6 +368,7 @@ export default function Home() {
         {
             key: 'keyboard',
             label: 'Main Actions Bar',
+            shortLabel: 'Keys',
             icon: <Keyboard className="h-4 w-4" />,
             // Show pagination controls without sending Page Up
             onClick: () => setScrollMode(true),
@@ -445,6 +378,7 @@ export default function Home() {
         {
             key: 'advanced',
             label: 'Utilities Panel',
+            shortLabel: 'More',
             icon: <Ellipsis className="h-4 w-4" />,
             onClick: () => {
                 setIsCommandPickerOpen(false);
@@ -479,6 +413,7 @@ export default function Home() {
         {
             key: 'enter',
             label: 'Enter',
+            shortLabel: 'Enter',
             icon: <CornerDownLeft className="h-4 w-4" />,
             onClick: () => terminalRef.current?.sendInput('\r'),
             tone: 'muted' as const,
@@ -486,6 +421,7 @@ export default function Home() {
         {
             key: 'arrow-left',
             label: 'Left',
+            shortLabel: 'Left',
             icon: <ArrowLeft className="h-4 w-4" />,
             onClick: () => terminalRef.current?.sendInput('\x1b[D'),
             tone: 'muted' as const,
@@ -493,6 +429,7 @@ export default function Home() {
         {
             key: 'arrow-right',
             label: 'Right',
+            shortLabel: 'Right',
             icon: <ArrowRight className="h-4 w-4" />,
             onClick: () => terminalRef.current?.sendInput('\x1b[C'),
             tone: 'muted' as const,
@@ -500,6 +437,7 @@ export default function Home() {
         {
             key: 'home',
             label: 'Home',
+            shortLabel: 'Home',
             icon: <HomeIcon className="h-4 w-4" />,
             onClick: () => terminalRef.current?.sendInput('\x1b[H'),
             tone: 'muted' as const,
@@ -514,6 +452,7 @@ export default function Home() {
         {
             key: 'page-up',
             label: 'Page Up',
+            shortLabel: 'Pg Up',
             icon: <ArrowBigUp className="h-5 w-5" />,
             onClick: handlePageUp,
             tone: 'muted' as const,
@@ -522,6 +461,7 @@ export default function Home() {
         {
             key: 'page-down',
             label: 'Page Down',
+            shortLabel: 'Pg Dn',
             icon: <ArrowBigDown className="h-5 w-5" />,
             onClick: handlePageDown,
             tone: 'muted' as const,
@@ -530,6 +470,7 @@ export default function Home() {
         {
             key: 'line-up',
             label: 'Line Up',
+            shortLabel: 'Up',
             icon: <ArrowUp className="h-4 w-4" />,
             onClick: handleLineUp,
             tone: 'muted' as const,
@@ -538,6 +479,7 @@ export default function Home() {
         {
             key: 'line-down',
             label: 'Line Down',
+            shortLabel: 'Down',
             icon: <ArrowDown className="h-4 w-4" />,
             onClick: handleLineDown,
             tone: 'muted' as const,
@@ -546,6 +488,7 @@ export default function Home() {
         {
             key: 'paste',
             label: 'Paste',
+            shortLabel: 'Paste',
             icon: <ClipboardPaste className="h-4 w-4" />,
             onClick: () => {
                 if (!isConnected) return;
@@ -557,6 +500,7 @@ export default function Home() {
         {
             key: 'copy-selection',
             label: 'Copy',
+            shortLabel: 'Copy',
             icon: <Copy className="h-5 w-5" />,
             onClick: handleCopySelection,
             tone: 'muted' as const,
@@ -590,6 +534,7 @@ export default function Home() {
         {
             key: 'scroll-escape',
             label: 'Escape',
+            shortLabel: 'Back',
             icon: <X className="h-4 w-4" />,
             onClick: exitScrollMode,
             tone: 'muted' as const,
@@ -599,7 +544,7 @@ export default function Home() {
     return (
         <div className="h-screen overflow-hidden bg-background p-2 sm:p-4 md:p-8">
             <div className="overflow-hidden bg-black fixed inset-0 z-50 flex mb-0">
-                <div className="bg-black flex-1">
+                <div className="bg-black flex-1 relative">
                     <Ttyd
                         key={connectionKey}
                         terminalRef={terminalRef}
@@ -615,6 +560,11 @@ export default function Home() {
                         onConnectionClose={handleConnectionClose}
                         onConnectionError={handleConnectionError}
                     />
+                    {currentWindow && (
+                        <div className="absolute top-1 left-1 bg-black/80 text-white text-xs font-mono px-2 py-1 rounded border border-white/20">
+                            {currentWindow.name} {currentWindow.paneName}
+                        </div>
+                    )}
                 </div>
                 {isCommandPickerOpen && (
                     <SideButtonOverlay
@@ -633,6 +583,7 @@ export default function Home() {
                             {
                                 key: 'cmd-close',
                                 label: 'Close Command Presets Panel',
+                                shortLabel: 'Close',
                                 icon: <X className="h-4 w-4" />,
                                 onClick: () => setIsCommandPickerOpen(false),
                                 stretch: false,
@@ -649,13 +600,24 @@ export default function Home() {
                         ref={advancedMenuRef}
                         buttons={[
                             {
-                                key: 'settings',
-                                label: 'Open Utilities Panel Settings',
-                                icon: <Settings className="h-4 w-4" />,
+                                key: 'toggle-inactive',
+                                label: 'Toggle Window Inactive',
+                                shortLabel: 'Skip Win',
+                                icon: <span className="text-sm font-mono">~</span>,
                                 onClick: () => {
+                                    terminalRef.current?.sendInput('\x1bs');  // Alt+s
                                     setIsAdvancedMenuOpen(false);
-                                    openSettingsDialog();
                                 },
+                                stretch: false,
+                                size: 'default',
+                                className: 'justify-start px-3',
+                            },
+                            {
+                                key: 'advanced-close',
+                                label: 'Close Utilities Panel',
+                                shortLabel: 'Close',
+                                icon: <X className="h-4 w-4" />,
+                                onClick: () => setIsAdvancedMenuOpen(false),
                                 stretch: false,
                                 size: 'default',
                                 className: 'justify-start px-3',
@@ -672,6 +634,7 @@ export default function Home() {
                                 <StripeButton
                                     key={action.key}
                                     label={action.label}
+                                    shortLabel={'shortLabel' in action ? action.shortLabel : undefined}
                                     icon={action.icon}
                                     tone={action.tone}
                                     active={action.active}
@@ -711,48 +674,6 @@ export default function Home() {
                         />
                     )}
                 </StripeButtonBar>
-
-                <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
-                    <DialogContent className="sm:max-w-[420px]">
-                        <DialogHeader>
-                            <DialogTitle>Utilities Panel Settings</DialogTitle>
-                            <DialogDescription>
-                                Configure which tmux windows are cycled and add any extra window numbers (comma-separated).
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-3">
-                                {[0, 1, 2, 3, 4].map((num) => (
-                                    <label key={num} className="flex items-center gap-2 text-sm">
-                                        <input
-                                            type="checkbox"
-                                            checked={Boolean(settingsChecked[num])}
-                                            onChange={(e) =>
-                                                setSettingsChecked((prev) => ({ ...prev, [num]: e.target.checked }))
-                                            }
-                                        />
-                                        <span>Window {num}</span>
-                                    </label>
-                                ))}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="extra-windows">Extra windows (comma separated)</Label>
-                                <Input
-                                    id="extra-windows"
-                                    value={extraWindowsInput}
-                                    onChange={(e) => setExtraWindowsInput(e.target.value)}
-                                    placeholder="e.g. 6,7,12"
-                                />
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button variant="neutral" onClick={() => setIsSettingsOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button onClick={handleSaveWindows}>Save</Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
             </div>
         </div>
     );
