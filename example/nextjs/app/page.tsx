@@ -4,12 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type React from 'react';
 import dynamic from 'next/dynamic';
 import type { RendererType, TtydHandle } from 'react-ttyd';
-import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
 import {
-    Bot,
     ArrowBigRightDash,
     Command,
     ArrowRightLeft,
@@ -28,7 +23,7 @@ import {
     WifiSync,
     X,
 } from 'lucide-react';
-import { StripeButtonBar, StripeButton, SideButtonOverlay } from '@/components/stripe-button-bar';
+import { StripeButtonBar, StripeButton } from '@/components/stripe-button-bar';
 import { commandPresets, type CommandPreset, type CommandStep } from './configure';
 
 const Ttyd = dynamic(
@@ -72,14 +67,11 @@ export default function Home() {
     const [options] = useState({
         wsUrl: 'wss://dev-remote-machine-1.tail83108.ts.net:4003/ws',
         rendererType: 'webgl' as RendererType,
-        fontSize: 13,
+        fontSize: 18,
         username: '',
         password: '',
     });
-    const commandPickerRef = useRef<HTMLDivElement | null>(null);
-    const commandPickerTriggerRef = useRef<HTMLButtonElement | null>(null);
-    const advancedMenuRef = useRef<HTMLDivElement | null>(null);
-    const advancedTriggerRef = useRef<HTMLButtonElement | null>(null);
+    const sidebarRef = useRef<HTMLElement | null>(null);
     const PAGE_UP = '\x1b[5~';
     const PAGE_DOWN = '\x1b[6~';
     const LINE_UP = '\x1b[A';
@@ -98,6 +90,8 @@ export default function Home() {
     const makeRepeatHandlers = (fn: () => void) => ({
         onMouseDown: (event: React.MouseEvent) => {
             event.preventDefault();
+            // Skip if touch already started this gesture
+            if (suppressClickRef.current) return;
             suppressClickRef.current = true;
             fn();
             stopRepeat();
@@ -113,6 +107,8 @@ export default function Home() {
         },
         onTouchStart: (event: React.TouchEvent) => {
             event.preventDefault();
+            // Skip if already started
+            if (suppressClickRef.current) return;
             suppressClickRef.current = true;
             fn();
             stopRepeat();
@@ -251,6 +247,17 @@ export default function Home() {
         }
         setConnectionStatus('disconnected');
         setConnectionKey(prev => prev + 1);
+        setScrollMode(false);  // Reset to normal buttons
+        // Blur to prevent on-screen keyboard on tablets
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+        // Also blur after terminal mounts to prevent auto-focus keyboard popup
+        setTimeout(() => {
+            if (document.activeElement instanceof HTMLElement) {
+                document.activeElement.blur();
+            }
+        }, 200);
     };
 
     const fetchTmuxStatus = useCallback(async () => {
@@ -294,13 +301,7 @@ export default function Home() {
         if (!isCommandPickerOpen && !isAdvancedMenuOpen) return;
         const handleClick = (event: MouseEvent) => {
             const target = event.target as Node;
-            const insideCommandOverlay = commandPickerRef.current?.contains(target);
-            const insideCommandTrigger = commandPickerTriggerRef.current?.contains(target);
-            const insideAdvancedOverlay = advancedMenuRef.current?.contains(target);
-            const insideAdvancedTrigger = advancedTriggerRef.current?.contains(target);
-
-            if (insideCommandOverlay || insideCommandTrigger || insideAdvancedOverlay || insideAdvancedTrigger) return;
-
+            if (sidebarRef.current?.contains(target)) return;
             setIsCommandPickerOpen(false);
             setIsAdvancedMenuOpen(false);
         };
@@ -543,8 +544,8 @@ export default function Home() {
 
     return (
         <div className="h-screen overflow-hidden bg-background p-2 sm:p-4 md:p-8">
-            <div className="overflow-hidden bg-black fixed inset-0 z-50 flex mb-0">
-                <div className="bg-black flex-1 relative">
+            <div className="overflow-hidden bg-black fixed inset-0 z-40 pr-16 sm:pr-20">
+                <div className="bg-black h-full relative">
                     <Ttyd
                         key={connectionKey}
                         terminalRef={terminalRef}
@@ -555,6 +556,7 @@ export default function Home() {
                         }}
                         termOptions={{
                             fontSize: options.fontSize,
+                            fontFamily: '"JetBrains Mono", monospace',
                         }}
                         onConnectionOpen={handleConnectionOpen}
                         onConnectionClose={handleConnectionClose}
@@ -566,105 +568,89 @@ export default function Home() {
                         </div>
                     )}
                 </div>
-                {isCommandPickerOpen && (
-                    <SideButtonOverlay
-                        ref={commandPickerRef}
-                        buttons={[
-                            ...commandPresets.map((cmd) => ({
-                                key: `cmd-${cmd.label}`,
-                                label: cmd.label,
-                                icon: <span className="text-sm font-mono leading-none">{cmd.label}</span>,
-                                onClick: () => handleSelectCommand(cmd),
-                                disabled: !isConnected,
-                                stretch: false,
-                                size: 'default',
-                                className: 'justify-start px-3',
-                            })),
-                            {
-                                key: 'cmd-close',
-                                label: 'Close Command Presets Panel',
-                                shortLabel: 'Close',
-                                icon: <X className="h-4 w-4" />,
-                                onClick: () => setIsCommandPickerOpen(false),
-                                stretch: false,
-                                size: 'default' as const,
-                                className: 'justify-start px-3',
-                            },
-                        ]}
-                        side="right"
-                        fitContent
-                    />
-                )}
-                {isAdvancedMenuOpen && (
-                    <SideButtonOverlay
-                        ref={advancedMenuRef}
-                        buttons={[
-                            {
-                                key: 'toggle-inactive',
-                                label: 'Toggle Window Inactive',
-                                shortLabel: 'Skip Win',
-                                icon: <span className="text-sm font-mono">~</span>,
-                                onClick: () => {
-                                    terminalRef.current?.sendInput('\x1bs');  // Alt+s
-                                    setIsAdvancedMenuOpen(false);
-                                },
-                                stretch: false,
-                                size: 'default',
-                                className: 'justify-start px-3',
-                            },
-                            {
-                                key: 'advanced-close',
-                                label: 'Close Utilities Panel',
-                                shortLabel: 'Close',
-                                icon: <X className="h-4 w-4" />,
-                                onClick: () => setIsAdvancedMenuOpen(false),
-                                stretch: false,
-                                size: 'default',
-                                className: 'justify-start px-3',
-                            },
-                        ]}
-                        side="right"
-                        fitContent
-                    />
-                )}
-                <StripeButtonBar>
+                <StripeButtonBar ref={sidebarRef}>
                     {isConnected ? (
                         <>
-                            {(scrollMode ? scrollButtons : normalButtons).map((action) => (
-                                <StripeButton
-                                    key={action.key}
-                                    label={action.label}
-                                    shortLabel={'shortLabel' in action ? action.shortLabel : undefined}
-                                    icon={action.icon}
-                                    tone={action.tone}
-                                    active={action.active}
-                                    disabled={action.disabled}
-                                    ref={
-                                        action.key === 'cmd-presets'
-                                            ? commandPickerTriggerRef
-                                            : action.key === 'advanced'
-                                              ? advancedTriggerRef
-                                              : undefined
-                                    }
-                                    onClick={
-                                        () => {
-                                            // If a mouse/touch repeat just fired, skip this click to avoid double-send.
-                                            if (action.repeatable && suppressClickRef.current) {
-                                                suppressClickRef.current = false;
-                                                return;
+                            {isCommandPickerOpen ? (
+                                <>
+                                    {commandPresets.map((cmd) => (
+                                        <StripeButton
+                                            key={`cmd-${cmd.label}`}
+                                            label={cmd.label}
+                                            shortLabel={cmd.label}
+                                            icon={<span className="text-sm font-mono leading-none">{cmd.label.slice(0, 2)}</span>}
+                                            onClick={() => handleSelectCommand(cmd)}
+                                            disabled={!isConnected}
+                                        />
+                                    ))}
+                                    <StripeButton
+                                        key="cmd-close"
+                                        label="Close"
+                                        shortLabel="Close"
+                                        icon={<X className="h-4 w-4" />}
+                                        onClick={() => setIsCommandPickerOpen(false)}
+                                    />
+                                </>
+                            ) : isAdvancedMenuOpen ? (
+                                <>
+                                    <StripeButton
+                                        key="next-window-all"
+                                        label="Next Window (All)"
+                                        shortLabel="All Win"
+                                        icon={<ArrowBigRightDash className="h-4 w-4" />}
+                                        onClick={() => {
+                                            terminalRef.current?.sendInput('\x02n');
+                                            setIsAdvancedMenuOpen(false);
+                                            setTimeout(fetchTmuxStatus, 100);
+                                        }}
+                                    />
+                                    <StripeButton
+                                        key="toggle-inactive"
+                                        label="Toggle Window Inactive"
+                                        shortLabel="Skip Win"
+                                        icon={<span className="text-sm font-mono">~</span>}
+                                        onClick={() => {
+                                            terminalRef.current?.sendInput('\x1bs');
+                                            setIsAdvancedMenuOpen(false);
+                                        }}
+                                    />
+                                    <StripeButton
+                                        key="advanced-close"
+                                        label="Close"
+                                        shortLabel="Close"
+                                        icon={<X className="h-4 w-4" />}
+                                        onClick={() => setIsAdvancedMenuOpen(false)}
+                                    />
+                                </>
+                            ) : (
+                                (scrollMode ? scrollButtons : normalButtons).map((action) => (
+                                    <StripeButton
+                                        key={action.key}
+                                        label={action.label}
+                                        shortLabel={'shortLabel' in action ? action.shortLabel : undefined}
+                                        icon={action.icon}
+                                        tone={action.tone}
+                                        active={action.active}
+                                        disabled={action.disabled}
+                                        onClick={
+                                            () => {
+                                                if (action.repeatable && suppressClickRef.current) {
+                                                    suppressClickRef.current = false;
+                                                    return;
+                                                }
+                                                setIsCommandPickerOpen(false);
+                                                action.onClick();
                                             }
-                                            setIsCommandPickerOpen(false);
-                                            action.onClick();
                                         }
-                                    }
-                                    {...(action.repeatable
-                                        ? makeRepeatHandlers(() => {
-                                            setIsCommandPickerOpen(false);
-                                            action.onClick();
-                                        })
-                                        : {})}
-                                />
-                            ))}
+                                        {...(action.repeatable
+                                            ? makeRepeatHandlers(() => {
+                                                setIsCommandPickerOpen(false);
+                                                action.onClick();
+                                            })
+                                            : {})}
+                                    />
+                                ))
+                            )}
                         </>
                     ) : (
                         <StripeButton
