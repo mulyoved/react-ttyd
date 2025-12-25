@@ -7,16 +7,18 @@ interface StripeButtonBarProps {
     footer?: React.ReactNode;
     children: React.ReactNode;
     className?: string;
+    wide?: boolean;
 }
 
 export const StripeButtonBar = React.forwardRef<HTMLElement, StripeButtonBarProps>(
-    ({ header, footer, children, className }, ref) => {
+    ({ header, footer, children, className, wide = false }, ref) => {
         return (
             <aside
                 ref={ref}
                 className={cn(
-                    'fixed right-0 top-0 bottom-0 z-50 flex w-16 sm:w-20 flex-col gap-0 border-l-2 border-border bg-gray-900 px-0 py-3 sm:py-4 text-white',
+                    'fixed right-0 top-0 bottom-0 z-50 flex flex-col gap-0 border-l-2 border-border bg-gray-900 px-0 py-3 sm:py-4 text-white',
                     'shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]',
+                    wide ? 'w-32 sm:w-40' : 'w-16 sm:w-20',
                     className,
                 )}
             >

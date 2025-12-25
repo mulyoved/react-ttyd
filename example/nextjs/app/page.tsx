@@ -24,6 +24,7 @@ import {
     X,
 } from 'lucide-react';
 import { StripeButtonBar, StripeButton } from '@/components/stripe-button-bar';
+import { cn } from '@/lib/utils';
 import { commandPresets, type CommandPreset, type CommandStep } from './configure';
 
 const Ttyd = dynamic(
@@ -534,17 +535,20 @@ export default function Home() {
         },
         {
             key: 'scroll-escape',
-            label: 'Escape',
+            label: 'Close Menu',
             shortLabel: 'Back',
             icon: <X className="h-4 w-4" />,
-            onClick: exitScrollMode,
+            onClick: () => setScrollMode(false),
             tone: 'muted' as const,
         },
     ];
 
     return (
         <div className="h-screen overflow-hidden bg-background p-2 sm:p-4 md:p-8">
-            <div className="overflow-hidden bg-black fixed inset-0 z-40 pr-16 sm:pr-20">
+            <div className={cn(
+                "overflow-hidden bg-black fixed inset-0 z-40",
+                isCommandPickerOpen ? "pr-32 sm:pr-40" : "pr-16 sm:pr-20"
+            )}>
                 <div className="bg-black h-full relative">
                     <Ttyd
                         key={connectionKey}
@@ -568,7 +572,7 @@ export default function Home() {
                         </div>
                     )}
                 </div>
-                <StripeButtonBar ref={sidebarRef}>
+                <StripeButtonBar ref={sidebarRef} wide={isCommandPickerOpen}>
                     {isConnected ? (
                         <>
                             {isCommandPickerOpen ? (
@@ -577,17 +581,17 @@ export default function Home() {
                                         <StripeButton
                                             key={`cmd-${cmd.label}`}
                                             label={cmd.label}
-                                            shortLabel={cmd.label}
-                                            icon={<span className="text-sm font-mono leading-none">{cmd.label.slice(0, 2)}</span>}
+                                            icon={<span className="text-xs font-mono leading-none truncate">{cmd.label}</span>}
                                             onClick={() => handleSelectCommand(cmd)}
                                             disabled={!isConnected}
+                                            className="justify-start px-3"
                                         />
                                     ))}
                                     <StripeButton
                                         key="cmd-close"
                                         label="Close"
-                                        shortLabel="Close"
                                         icon={<X className="h-4 w-4" />}
+                                        shortLabel="Close"
                                         onClick={() => setIsCommandPickerOpen(false)}
                                     />
                                 </>
