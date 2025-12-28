@@ -561,6 +561,10 @@ export default function Home() {
                         termOptions={{
                             fontSize: options.fontSize,
                             fontFamily: '"JetBrains Mono", monospace',
+                            theme: {
+                                background: '#1a1a1a',
+                                foreground: '#E0E0E0',
+                            },
                         }}
                         onConnectionOpen={handleConnectionOpen}
                         onConnectionClose={handleConnectionClose}
