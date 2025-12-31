@@ -40,6 +40,8 @@ export const StripeButtonBar = React.forwardRef<HTMLElement, StripeButtonBarProp
     }
 );
 
+StripeButtonBar.displayName = 'StripeButtonBar';
+
 type StripeButtonTone = 'default' | 'muted' | 'danger';
 
 interface StripeButtonProps extends React.ComponentProps<typeof Button> {
@@ -151,3 +153,5 @@ export const SideButtonOverlay = React.forwardRef<HTMLDivElement, SideButtonOver
         );
     }
 );
+
+SideButtonOverlay.displayName = 'SideButtonOverlay';

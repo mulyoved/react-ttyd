@@ -16,6 +16,7 @@ This is an advanced Next.js example demonstrating the full capabilities of the `
 - **Responsive Design**: Optimized for both desktop and mobile devices
 - **Neobrutalism UI**: Modern, bold design with shadcn/ui components
 - **Vercel Analytics**: Built-in analytics tracking
+- **Keyboard Configurator**: Standalone drag-and-drop keyboard editor with JSON export at `/keyboard-configurator`
 
 ## Prerequisites
 
@@ -186,6 +187,8 @@ Set these in your Vercel project settings:
 example/nextjs/
 ├── app/
 │   ├── page.tsx         # Main page with Terminal Commander
+│   ├── keyboard-configurator/
+│   │   └── page.tsx     # External keyboard editor + JSON export
 │   ├── layout.tsx       # Root layout with analytics
 │   └── globals.css      # Global styles
 ├── components/

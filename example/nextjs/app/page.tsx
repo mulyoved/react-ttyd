@@ -39,28 +39,10 @@ const Ttyd = dynamic(
     }
 );
 
-const keyboardShortcuts = [
-    { name: 'Ctrl+C', key: '\x03', description: 'Interrupt/Cancel current process' },
-    { name: 'Ctrl+D', key: '\x04', description: 'End of file (EOF) / Exit' },
-    { name: 'Ctrl+Z', key: '\x1a', description: 'Suspend current process' },
-    { name: 'Ctrl+A', key: '\x01', description: 'Move cursor to beginning of line' },
-    { name: 'Ctrl+E', key: '\x05', description: 'Move cursor to end of line' },
-    { name: 'Ctrl+K', key: '\x0b', description: 'Kill/Delete from cursor to end of line' },
-    { name: 'Ctrl+U', key: '\x15', description: 'Kill/Delete from cursor to beginning of line' },
-    { name: 'Ctrl+W', key: '\x17', description: 'Delete word before cursor' },
-    { name: 'Ctrl+L', key: '\x0c', description: 'Clear screen' },
-    { name: 'Ctrl+R', key: '\x12', description: 'Reverse search command history' },
-    { name: 'Tab', key: '\x09', description: 'Auto-complete' },
-    { name: 'Escape', key: '\x1b', description: 'Escape key' },
-];
-
 export default function Home() {
     const terminalRef = useRef<TtydHandle>(null);
     const [connectionKey, setConnectionKey] = useState(0);
     const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [commandInput, setCommandInput] = useState('');
-    const [pasteText, setPasteText] = useState('');
     const [isCommandPickerOpen, setIsCommandPickerOpen] = useState(false);
     const [isAdvancedMenuOpen, setIsAdvancedMenuOpen] = useState(false);
     const [scrollMode, setScrollMode] = useState(false);
@@ -140,20 +122,22 @@ export default function Home() {
         setConnectionStatus('error');
     }, []);
 
-    const handleExecuteCommand = () => {
-        if (terminalRef.current && commandInput.trim()) {
-            terminalRef.current.execute(commandInput);
-            setCommandInput('');
-            setIsDialogOpen(false);
+    const handlePasteFromClipboard = async () => {
+        if (!terminalRef.current) return;
+        let text = '';
+        if (navigator.clipboard?.readText) {
+            try {
+                text = await navigator.clipboard.readText();
+            } catch {
+                text = '';
+            }
         }
-    };
-
-    const handlePasteText = () => {
-        if (terminalRef.current && pasteText.trim()) {
-            terminalRef.current.execute(pasteText, false);
-            setPasteText('');
-            setIsDialogOpen(false);
+        if (!text) {
+            const prompted = window.prompt('Paste text to send to terminal:');
+            if (!prompted) return;
+            text = prompted;
         }
+        terminalRef.current.execute(text, false);
     };
 
     const sendStep = (step: CommandStep) => {
@@ -198,12 +182,6 @@ export default function Home() {
             delay += stepDelay * (step.repeat ?? 1);
         });
         setIsCommandPickerOpen(false);
-    };
-
-    const handleSendShortcut = (key: string) => {
-        if (terminalRef.current) {
-            terminalRef.current.sendInput(key);
-        }
     };
 
     const enterScrollMode = () => {
@@ -492,10 +470,7 @@ export default function Home() {
             label: 'Paste',
             shortLabel: 'Paste',
             icon: <ClipboardPaste className="h-4 w-4" />,
-            onClick: () => {
-                if (!isConnected) return;
-                setIsDialogOpen(true);
-            },
+            onClick: handlePasteFromClipboard,
             tone: 'muted' as const,
             disabled: !isConnected,
         },

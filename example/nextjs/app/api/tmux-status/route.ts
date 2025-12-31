@@ -33,7 +33,7 @@ export async function GET() {
             paneIndex: paneIdx,
             paneName: paneNames[paneIdx] || `pane${paneIdx}`,
         });
-    } catch (error) {
+    } catch {
         // tmux might not be running or accessible
         return NextResponse.json(
             { error: 'Failed to get tmux status' },

@@ -202,10 +202,6 @@ export default function Home() {
         terminalRef.current?.execute('clear');
     };
 
-    const handleInterrupt = () => {
-        terminalRef.current?.sendInput('\x03');
-    };
-
     const handleSelectWindow = useCallback((index: number) => {
         console.log('tmux switch send', index);
         const term = terminalRef.current;
@@ -242,15 +238,6 @@ export default function Home() {
             return (targetIdx + 1) % tmuxWindows.length;
         });
     }, [handleSelectWindow, tmuxWindows]);
-
-    const handleReconnect = () => {
-        if (connectionStatus === 'connected') {
-            terminalRef.current?.disconnect();
-        }
-        setIsFullscreen(false);
-        setConnectionStatus('disconnected');
-        setConnectionKey(prev => prev + 1);
-    };
 
     // Trigger resize event when fullscreen state changes
     useEffect(() => {
