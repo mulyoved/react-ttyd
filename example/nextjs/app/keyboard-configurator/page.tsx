@@ -51,26 +51,48 @@ import { toast } from 'sonner'
 // -----------------------------
 
 type SpecialCode =
-  | 'ENTER'
-  | 'BACKSPACE'
-  | 'TAB'
-  | 'ESC'
-  | 'SPACE'
-  | 'SHIFT'
-  | 'CTRL'
   | 'ALT'
-  | 'CMD'
-  | 'ARROW_UP'
+  | 'ALT_B'
+  | 'ALT_C'
+  | 'ALT_DOWN'
+  | 'ALT_G'
+  | 'ALT_LEFT'
+  | 'ALT_RIGHT'
+  | 'ALT_S'
+  | 'ALT_UP'
+  | 'ALT_X'
+  | 'ALT_Y'
+  | 'ALT_Z'
   | 'ARROW_DOWN'
   | 'ARROW_LEFT'
   | 'ARROW_RIGHT'
-  | 'HOME'
-  | 'END'
-  | 'PAGE_UP'
-  | 'PAGE_DOWN'
-  | 'INSERT'
+  | 'ARROW_UP'
+  | 'BACKSPACE'
+  | 'CMD'
+  | 'CTRL'
+  | 'CTRL_A'
+  | 'CTRL_B'
+  | 'CTRL_B_N'
+  | 'CTRL_C'
+  | 'CTRL_D'
+  | 'CTRL_DOWN'
+  | 'CTRL_E'
+  | 'CTRL_G'
+  | 'CTRL_K'
+  | 'CTRL_L'
+  | 'CTRL_LEFT'
+  | 'CTRL_R'
+  | 'CTRL_RIGHT'
+  | 'CTRL_U'
+  | 'CTRL_UP'
+  | 'CTRL_W'
+  | 'CTRL_Z'
   | 'DELETE'
+  | 'END'
+  | 'ENTER'
+  | 'ESC'
   | 'F1'
+  | 'F10'
   | 'F2'
   | 'F3'
   | 'F4'
@@ -79,9 +101,26 @@ type SpecialCode =
   | 'F7'
   | 'F8'
   | 'F9'
-  | 'F10'
-  | 'F11'
-  | 'F12'
+  | 'HOME'
+  | 'PAGE_DOWN'
+  | 'PAGE_UP'
+  | 'SHIFT'
+  | 'SPACE'
+  | 'TAB'
+
+// Catalog entries used by the keyboard configurator.
+// - `name`: human-readable label (full name)
+// - `sequence`: exact terminal bytes sent for this key (undefined for pure modifiers)
+// - `description`: short explanation for users
+type SpecialKeyDefinition = {
+  code: SpecialCode
+  name: string
+  description: string
+  sequence?: string
+  label?: string
+  aliases?: string[]
+  isModifier?: boolean
+}
 
 type ActionCode = 'ROTATE_KEYBOARD' | 'OPEN_KEYBOARD_SETTINGS'
 
@@ -168,39 +207,98 @@ function emptyGrid(rows = GRID_ROWS, cols = GRID_COLS): KeyboardGrid {
   return Array.from({ length: rows }, () => Array.from({ length: cols }, () => null))
 }
 
-const SPECIAL_KEYS: Array<{ label: string; code: SpecialCode }> = [
-  { label: 'Enter', code: 'ENTER' },
-  { label: '⌫', code: 'BACKSPACE' },
-  { label: 'Tab', code: 'TAB' },
-  { label: 'Esc', code: 'ESC' },
-  { label: 'Space', code: 'SPACE' },
-  { label: 'Shift', code: 'SHIFT' },
-  { label: 'Ctrl', code: 'CTRL' },
-  { label: 'Alt', code: 'ALT' },
-  { label: 'Cmd', code: 'CMD' },
-  { label: '↑', code: 'ARROW_UP' },
-  { label: '↓', code: 'ARROW_DOWN' },
-  { label: '←', code: 'ARROW_LEFT' },
-  { label: '→', code: 'ARROW_RIGHT' },
-  { label: 'Home', code: 'HOME' },
-  { label: 'End', code: 'END' },
-  { label: 'PgUp', code: 'PAGE_UP' },
-  { label: 'PgDn', code: 'PAGE_DOWN' },
-  { label: 'Ins', code: 'INSERT' },
-  { label: 'Del', code: 'DELETE' },
-  { label: 'F1', code: 'F1' },
-  { label: 'F2', code: 'F2' },
-  { label: 'F3', code: 'F3' },
-  { label: 'F4', code: 'F4' },
-  { label: 'F5', code: 'F5' },
-  { label: 'F6', code: 'F6' },
-  { label: 'F7', code: 'F7' },
-  { label: 'F8', code: 'F8' },
-  { label: 'F9', code: 'F9' },
-  { label: 'F10', code: 'F10' },
-  { label: 'F11', code: 'F11' },
-  { label: 'F12', code: 'F12' },
+// Key catalog for the configurator: every entry has a name, an exact terminal
+// sequence (if applicable), and a description for the user to reference.
+const SPECIAL_KEY_CATALOG: SpecialKeyDefinition[] = [
+  // Tmux window navigation (F-keys)
+  { code: 'F1', name: 'F1', label: 'F1', sequence: '\x1bOP', description: 'Jump to tmux window 1', aliases: ['Window 1'] },
+  { code: 'F2', name: 'F2', label: 'F2', sequence: '\x1bOQ', description: 'Jump to tmux window 2', aliases: ['Window 2'] },
+  { code: 'F3', name: 'F3', label: 'F3', sequence: '\x1bOR', description: 'Jump to tmux window 3', aliases: ['Window 3'] },
+  { code: 'F4', name: 'F4', label: 'F4', sequence: '\x1bOS', description: 'Jump to tmux window 4', aliases: ['Window 4'] },
+  { code: 'F5', name: 'F5', label: 'F5', sequence: '\x1b[15~', description: 'Jump to tmux window 5', aliases: ['Window 5'] },
+  { code: 'F6', name: 'F6', label: 'F6', sequence: '\x1b[17~', description: 'Jump to tmux window 6', aliases: ['Window 6'] },
+  { code: 'F7', name: 'F7', label: 'F7', sequence: '\x1b[18~', description: 'Jump to tmux window 7', aliases: ['Window 7'] },
+  { code: 'F8', name: 'F8', label: 'F8', sequence: '\x1b[19~', description: 'Jump to tmux window 8', aliases: ['Window 8'] },
+  { code: 'F9', name: 'F9', label: 'F9', sequence: '\x1b[20~', description: 'Jump to tmux window 9', aliases: ['Window 9'] },
+  { code: 'F10', name: 'F10', label: 'F10', sequence: '\x1b[21~', description: 'Jump to tmux window 0', aliases: ['Window 0'] },
+  { code: 'CTRL_LEFT', name: 'Ctrl+Left', label: 'Ctrl+←', sequence: '\x1b[1;5D', description: 'Previous active tmux window (skips ~)', aliases: ['Prev window', 'Previous window'] },
+  { code: 'CTRL_RIGHT', name: 'Ctrl+Right', label: 'Ctrl+→', sequence: '\x1b[1;5C', description: 'Next active tmux window (skips ~)', aliases: ['Next window'] },
+  { code: 'ALT_LEFT', name: 'Alt+Left', label: 'Alt+←', sequence: '\x1b[1;3D', description: 'Previous active tmux window (skips ~)', aliases: ['Prev window', 'Previous window'] },
+  { code: 'ALT_RIGHT', name: 'Alt+Right', label: 'Alt+→', sequence: '\x1b[1;3C', description: 'Next active tmux window (skips ~)', aliases: ['Next window'] },
+  { code: 'ALT_S', name: 'Alt+S', label: 'Alt+S', sequence: '\x1bs', description: 'Toggle tmux window inactive (~ prefix)', aliases: ['Toggle inactive', '~'] },
+  { code: 'ALT_Y', name: 'Alt+Y', label: 'Alt+Y', sequence: '\x1by', description: 'Switch tmux session (main ↔ background)' },
+  { code: 'ALT_Z', name: 'Alt+Z', label: 'Alt+Z', sequence: '\x1bz', description: 'Move tmux window between sessions (main ↔ background)' },
+  { code: 'CTRL_B_N', name: 'Ctrl+B n', label: 'C-b n', sequence: '\x02n', description: 'Tmux next window (all, prefix + n)', aliases: ['Next window all'] },
+  // Tmux pane navigation
+  { code: 'ALT_C', name: 'Alt+C', label: 'Alt+C', sequence: '\x1bc', description: 'Jump to Claude pane (pane 0, zoom)', aliases: ['Claude'] },
+  { code: 'ALT_G', name: 'Alt+G', label: 'Alt+G', sequence: '\x1bg', description: 'Jump to lazygit pane (pane 1, zoom)', aliases: ['lazygit', 'Git'] },
+  { code: 'ALT_B', name: 'Alt+B', label: 'Alt+B', sequence: '\x1bb', description: 'Jump to bash pane (pane 2, zoom)', aliases: ['Bash'] },
+  { code: 'ALT_X', name: 'Alt+X', label: 'Alt+X', sequence: '\x1bx', description: 'Jump to Codex pane (pane 3, zoom)', aliases: ['Codex'] },
+  { code: 'CTRL_DOWN', name: 'Ctrl+Down', label: 'Ctrl+↓', sequence: '\x1b[1;5B', description: 'Cycle panes forward (0→1→2→3→0)' },
+  { code: 'CTRL_UP', name: 'Ctrl+Up', label: 'Ctrl+↑', sequence: '\x1b[1;5A', description: 'Cycle panes backward (0→3→2→1→0)' },
+  { code: 'ALT_DOWN', name: 'Alt+Down', label: 'Alt+↓', sequence: '\x1b[1;3B', description: 'Cycle panes forward (0→1→2→3→0)' },
+  { code: 'ALT_UP', name: 'Alt+Up', label: 'Alt+↑', sequence: '\x1b[1;3A', description: 'Cycle panes backward (0→3→2→1→0)' },
+  // Navigation keys
+  { code: 'ARROW_UP', name: 'Arrow Up', label: '↑', sequence: '\x1b[A', description: 'Cursor up / line up' },
+  { code: 'ARROW_DOWN', name: 'Arrow Down', label: '↓', sequence: '\x1b[B', description: 'Cursor down / line down' },
+  { code: 'ARROW_LEFT', name: 'Arrow Left', label: '←', sequence: '\x1b[D', description: 'Cursor left' },
+  { code: 'ARROW_RIGHT', name: 'Arrow Right', label: '→', sequence: '\x1b[C', description: 'Cursor right' },
+  { code: 'HOME', name: 'Home', label: 'Home', sequence: '\x1b[H', description: 'Home' },
+  { code: 'END', name: 'End', label: 'End', sequence: '\x1b[F', description: 'End' },
+  { code: 'PAGE_UP', name: 'Page Up', label: 'PgUp', sequence: '\x1b[5~', description: 'Page up / enter copy mode' },
+  { code: 'PAGE_DOWN', name: 'Page Down', label: 'PgDn', sequence: '\x1b[6~', description: 'Page down' },
+  // Core terminal keys
+  { code: 'ENTER', name: 'Enter', label: 'Enter', sequence: '\r', description: 'Enter / return' },
+  { code: 'TAB', name: 'Tab', label: 'Tab', sequence: '\t', description: 'Tab / autocomplete' },
+  { code: 'ESC', name: 'Esc', label: 'Esc', sequence: '\x1b', description: 'Escape' },
+  { code: 'SPACE', name: 'Space', label: 'Space', sequence: ' ', description: 'Space' },
+  { code: 'BACKSPACE', name: 'Backspace', label: '⌫', sequence: '\x08', description: 'Backspace' },
+  { code: 'DELETE', name: 'Delete', label: 'Del', sequence: '\x7f', description: 'Delete' },
+  // Common Ctrl shortcuts
+  { code: 'CTRL_A', name: 'Ctrl+A', label: 'Ctrl+A', sequence: '\x01', description: 'Move cursor to start of line' },
+  { code: 'CTRL_B', name: 'Ctrl+B', label: 'Ctrl+B', sequence: '\x02', description: 'tmux prefix / move backward one char' },
+  { code: 'CTRL_C', name: 'Ctrl+C', label: 'Ctrl+C', sequence: '\x03', description: 'Interrupt / cancel' },
+  { code: 'CTRL_D', name: 'Ctrl+D', label: 'Ctrl+D', sequence: '\x04', description: 'EOF / exit' },
+  { code: 'CTRL_E', name: 'Ctrl+E', label: 'Ctrl+E', sequence: '\x05', description: 'Move cursor to end of line' },
+  { code: 'CTRL_G', name: 'Ctrl+G', label: 'Ctrl+G', sequence: '\x07', description: 'Bell' },
+  { code: 'CTRL_K', name: 'Ctrl+K', label: 'Ctrl+K', sequence: '\x0b', description: 'Kill to end of line' },
+  { code: 'CTRL_L', name: 'Ctrl+L', label: 'Ctrl+L', sequence: '\x0c', description: 'Clear screen' },
+  { code: 'CTRL_R', name: 'Ctrl+R', label: 'Ctrl+R', sequence: '\x12', description: 'Reverse search history' },
+  { code: 'CTRL_U', name: 'Ctrl+U', label: 'Ctrl+U', sequence: '\x15', description: 'Kill to beginning of line' },
+  { code: 'CTRL_W', name: 'Ctrl+W', label: 'Ctrl+W', sequence: '\x17', description: 'Delete word before cursor' },
+  { code: 'CTRL_Z', name: 'Ctrl+Z', label: 'Ctrl+Z', sequence: '\x1a', description: 'Suspend process' },
+  // Modifiers (no sequence by themselves)
+  { code: 'SHIFT', name: 'Shift', label: 'Shift', description: 'Modifier key (no sequence)', isModifier: true },
+  { code: 'CTRL', name: 'Ctrl', label: 'Ctrl', description: 'Modifier key (no sequence)', isModifier: true },
+  { code: 'ALT', name: 'Alt', label: 'Alt', description: 'Modifier key (no sequence)', isModifier: true },
+  { code: 'CMD', name: 'Cmd', label: 'Cmd', description: 'Modifier key (no sequence)', isModifier: true },
 ]
+
+const SPECIAL_KEY_BY_CODE = new Map<SpecialCode, SpecialKeyDefinition>(
+  SPECIAL_KEY_CATALOG.map((entry) => [entry.code, entry]),
+)
+
+function getSpecialKey(code: SpecialCode | string): SpecialKeyDefinition | undefined {
+  return SPECIAL_KEY_BY_CODE.get(code as SpecialCode)
+}
+
+// Render control characters as readable escape sequences for UI display.
+function formatSequence(sequence?: string): string {
+  if (!sequence) return '—'
+  let output = ''
+  for (const ch of sequence) {
+    const code = ch.charCodeAt(0)
+    if (code === 9) output += '\\t'
+    else if (code === 10) output += '\\n'
+    else if (code === 13) output += '\\r'
+    else if (code === 27) output += '\\x1b'
+    else if (code === 127) output += '\\x7f'
+    else if (code < 32) output += `\\x${code.toString(16).padStart(2, '0')}`
+    else if (ch === '\\') output += '\\\\'
+    else output += ch
+  }
+  return output
+}
 
 const ACTION_KEYS: Array<{ label: string; action: ActionCode }> = [
   { label: 'Rotate', action: 'ROTATE_KEYBOARD' },
@@ -261,7 +359,7 @@ function slotLabel(item: SlotItem, macros: MacroDef[]): string {
     case 'character':
       return item.char
     case 'special':
-      return SPECIAL_KEYS.find((k) => k.code === item.code)?.label ?? item.code
+      return getSpecialKey(item.code)?.label ?? getSpecialKey(item.code)?.name ?? item.code
     case 'action':
       return ACTION_KEYS.find((a) => a.action === item.action)?.label ?? item.action
     case 'macro': {
@@ -269,6 +367,23 @@ function slotLabel(item: SlotItem, macros: MacroDef[]): string {
       return macro?.label ?? item.macroId
     }
   }
+}
+
+function slotTooltip(item: SlotItem, macros: MacroDef[]): string {
+  if (item.type === 'special') {
+    const entry = getSpecialKey(item.code)
+    if (entry) {
+      const sequence = entry.sequence ? formatSequence(entry.sequence) : '—'
+      const sequenceLabel = entry.sequence ? `Sequence: ${sequence}` : 'Sequence: (none)'
+      return `${entry.name} | ${entry.description} | ${sequenceLabel}`
+    }
+  }
+  if (item.type === 'macro') {
+    const macro = macros.find((m) => m.id === item.macroId)
+    return macro ? `${macro.name} | macro` : item.macroId
+  }
+  const label = slotLabel(item, macros)
+  return label
 }
 
 function applyTemplate(template: TemplateId): KeyboardGrid {
@@ -305,7 +420,7 @@ function applyTemplate(template: TemplateId): KeyboardGrid {
       { type: 'special', code: 'ESC' },
       { type: 'special', code: 'ENTER' },
       { type: 'special', code: 'BACKSPACE' },
-      { type: 'special', code: 'INSERT' },
+      { type: 'special', code: 'SPACE' },
       { type: 'special', code: 'DELETE' },
       { type: 'macro', macroId: 'nav_refresh' },
       { type: 'macro', macroId: 'nav_search' },
@@ -1177,11 +1292,26 @@ export default function KeyboardConfiguratorPage() {
 
   const paletteSpecial = React.useMemo(() => {
     const q = search.trim().toLowerCase()
-    return SPECIAL_KEYS.filter((k) => !q || k.label.toLowerCase().includes(q) || k.code.toLowerCase().includes(q)).map<SlotItem>((k) => ({
-      type: 'special',
-      code: k.code,
-      label: k.label,
-    }))
+    return SPECIAL_KEY_CATALOG
+      .filter((entry) => {
+        if (!q) return true
+        const haystack = [
+          entry.name,
+          entry.label,
+          entry.description,
+          entry.code,
+          entry.sequence ? formatSequence(entry.sequence) : '',
+          ...(entry.aliases ?? []),
+        ]
+          .filter(Boolean)
+          .map((value) => value.toLowerCase())
+        return haystack.some((value) => value.includes(q))
+      })
+      .map<SlotItem>((entry) => ({
+        type: 'special',
+        code: entry.code,
+        ...(entry.label ? { label: entry.label } : {}),
+      }))
   }, [search])
 
   const paletteActions = React.useMemo(() => {
@@ -1222,6 +1352,11 @@ export default function KeyboardConfiguratorPage() {
     if (!selectedSlot) return null
     return selectedKeyboard.grid[selectedSlot.row]?.[selectedSlot.col] ?? null
   }, [selectedKeyboard.grid, selectedSlot])
+
+  const selectedSpecial = React.useMemo(() => {
+    if (selectedItem?.type !== 'special') return null
+    return getSpecialKey(selectedItem.code)
+  }, [selectedItem])
 
   const selectedItemLabel = selectedItem ? slotLabel(selectedItem, config.macros) : ''
 
@@ -1934,6 +2069,17 @@ export default function KeyboardConfiguratorPage() {
                         </div>
                       </div>
 
+                      {selectedSpecial ? (
+                        <div className="rounded-base border-2 border-border bg-background p-4 space-y-2">
+                          <div className="font-heading">Special key</div>
+                          <div className="text-sm font-base">{selectedSpecial.name}</div>
+                          <div className="text-xs text-foreground/70">{selectedSpecial.description}</div>
+                          <div className="text-xs font-mono">
+                            Sequence: {selectedSpecial.sequence ? formatSequence(selectedSpecial.sequence) : '—'}
+                          </div>
+                        </div>
+                      ) : null}
+
                       {selectedItem?.type === 'macro' ? (
                         <div className="rounded-base border-2 border-border bg-background p-4 space-y-3">
                           <div className="font-heading">Macro</div>
@@ -2085,6 +2231,7 @@ function PaletteItem({
         : item.type === 'action'
           ? 'action'
           : '')
+  const tooltip = slotTooltip(item, macros)
   return (
     <button
       type="button"
@@ -2095,7 +2242,7 @@ function PaletteItem({
         'h-12 rounded-base border-2 border-border bg-secondary-background text-sm font-base transition-transform active:scale-95',
         'hover:bg-background',
       )}
-      title={sub ? `${label} (${sub})` : label}
+      title={tooltip}
     >
       <span className="flex h-full flex-col items-center justify-center leading-none">
         <span>{label}</span>
