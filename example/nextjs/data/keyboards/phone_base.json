@@ -2,14 +2,14 @@
   "version": 1,
   "meta": {
     "name": "phone-base",
-    "savedAt": "2026-01-01T11:00:55.862Z"
+    "savedAt": "2026-01-01T11:50:47.426Z"
   },
   "keyboard": {
     "id": "phone_base",
     "name": "phone-base",
     "builtIn": true,
-    "active": false,
-    "rotationOrder": 5,
+    "active": true,
+    "rotationOrder": 0,
     "grid": [
       [
         {
@@ -185,5 +185,5 @@
       "script": "{\n  \"type\": \"command\",\n  \"value\": \"skip\"\n}"
     }
   ],
-  "isDefault": false
+  "isDefault": true
 }

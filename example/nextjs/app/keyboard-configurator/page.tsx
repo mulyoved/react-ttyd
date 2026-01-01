@@ -166,6 +166,11 @@ export default function KeyboardConfiguratorPage() {
 
           <div className="flex flex-col gap-2">
             <Button variant="neutral" size="sm" asChild>
+              <Link href="/keyboard-demo" target="_blank" rel="noopener noreferrer">
+                Preview Keyboard
+              </Link>
+            </Button>
+            <Button variant="neutral" size="sm" asChild>
               <Link href={settingsHref}>Keyboards</Link>
             </Button>
             <Button size="sm" onClick={saveKeyboards} disabled={isSaving || isLoading}>
