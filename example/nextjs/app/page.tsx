@@ -6,26 +6,32 @@ import dynamic from 'next/dynamic';
 import type { RendererType, TtydHandle } from 'react-ttyd';
 import {
     ArrowBigRightDash,
+    Bot,
+    ClipboardPaste,
     Command,
-    ArrowRightLeft,
-    ArrowBigUp,
-    ArrowBigDown,
-    ArrowUp,
-    ArrowDown,
-    ArrowLeft,
-    ArrowRight,
-    Home as HomeIcon,
-    CornerDownLeft,
     Copy,
     Ellipsis,
-    ClipboardPaste,
     Keyboard,
+    RotateCcw,
+    Settings,
     WifiSync,
     X,
 } from 'lucide-react';
 import { StripeButtonBar, StripeButton } from '@/components/stripe-button-bar';
 import { cn } from '@/lib/utils';
 import { commandPresets, type CommandPreset, type CommandStep } from './configure';
+import {
+    KEYBOARD_MENU_KEYBOARD_ID,
+    MAIN_MENU_KEYBOARD_ID,
+    SECONDARY_MENU_KEYBOARD_ID,
+    KeyboardConfiguratorProvider,
+    slotLabel,
+    useKeyboardConfigurator,
+    type ActionCode,
+    type SlotItem,
+} from './keyboard-configurator/configurator-context';
+import { runSlotItem, slotRequiresConnection } from '@/lib/keyboard-runtime';
+import { TerminalCommander } from '@/components/terminal-commander';
 
 const Ttyd = dynamic(
     () => import('react-ttyd').then(mod => mod.Ttyd),
@@ -40,12 +46,20 @@ const Ttyd = dynamic(
 );
 
 export default function Home() {
+    return (
+        <KeyboardConfiguratorProvider>
+            <HomeContent />
+        </KeyboardConfiguratorProvider>
+    );
+}
+
+function HomeContent() {
     const terminalRef = useRef<TtydHandle>(null);
     const [connectionKey, setConnectionKey] = useState(0);
     const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
     const [isCommandPickerOpen, setIsCommandPickerOpen] = useState(false);
-    const [isAdvancedMenuOpen, setIsAdvancedMenuOpen] = useState(false);
-    const [scrollMode, setScrollMode] = useState(false);
+    const [isCommanderOpen, setIsCommanderOpen] = useState(false);
+    const [menuId, setMenuId] = useState(MAIN_MENU_KEYBOARD_ID);
     const [currentWindow, setCurrentWindow] = useState<{ index: number; name: string; paneName: string } | null>(null);
     const [options] = useState({
         wsUrl: 'wss://dev-remote-machine-1.tail83108.ts.net:4003/ws',
@@ -54,12 +68,18 @@ export default function Home() {
         username: '',
         password: '',
     });
+    const { config, macrosByKeyboardId, isLoading } = useKeyboardConfigurator();
+    const [tmuxWindows] = useState<number[]>(() => {
+        if (typeof window === 'undefined') return [0, 1, 2, 3, 4];
+        const param = new URLSearchParams(window.location.search).get('tmuxWindows');
+        const parsed = param
+            ?.split(',')
+            .map((value) => parseInt(value.trim(), 10))
+            .filter((num) => !Number.isNaN(num));
+        return parsed && parsed.length > 0 ? parsed : [0, 1, 2, 3, 4];
+    });
+    const [tmuxCycleIndex, setTmuxCycleIndex] = useState(0);
     const sidebarRef = useRef<HTMLElement | null>(null);
-    const PAGE_UP = '\x1b[5~';
-    const PAGE_DOWN = '\x1b[6~';
-    const LINE_UP = '\x1b[A';
-    const LINE_DOWN = '\x1b[B';
-    const ESC = '\x1b';
     const repeatIntervalRef = useRef<number | null>(null);
     const suppressClickRef = useRef(false);
 
@@ -184,27 +204,6 @@ export default function Home() {
         setIsCommandPickerOpen(false);
     };
 
-    const enterScrollMode = () => {
-        setScrollMode(true);
-        terminalRef.current?.sendInput(PAGE_UP);
-    };
-
-    const handlePageUp = () => {
-        terminalRef.current?.sendInput(PAGE_UP);
-    };
-
-    const handlePageDown = () => {
-        terminalRef.current?.sendInput(PAGE_DOWN);
-    };
-
-    const handleLineUp = () => {
-        terminalRef.current?.sendInput(LINE_UP);
-    };
-
-    const handleLineDown = () => {
-        terminalRef.current?.sendInput(LINE_DOWN);
-    };
-
     const handleCopySelection = () => {
         const selected = window.getSelection()?.toString();
         if (!selected) return;
@@ -215,18 +214,12 @@ export default function Home() {
         }
     };
 
-    const exitScrollMode = () => {
-        terminalRef.current?.sendInput(ESC);
-        setScrollMode(false);
-    };
-
     const handleReconnect = () => {
         if (connectionStatus === 'connected') {
             terminalRef.current?.disconnect();
         }
         setConnectionStatus('disconnected');
         setConnectionKey(prev => prev + 1);
-        setScrollMode(false);  // Reset to normal buttons
         // Blur to prevent on-screen keyboard on tablets
         if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
@@ -255,11 +248,40 @@ export default function Home() {
         }
     }, []);
 
-    const handleNextWindow = useCallback(() => {
-        terminalRef.current?.sendInput('\x1b[1;5C');  // Ctrl+Right
-        // Fetch status after a short delay to let tmux switch
-        setTimeout(fetchTmuxStatus, 100);
+    const handleSelectWindow = useCallback((index: number) => {
+        const term = terminalRef.current;
+        if (!term) return;
+
+        // F1-F10 map to tmux windows 1-9 and 0 in the current setup.
+        const fnSequences: Record<number, string> = {
+            1: '\x1bOP',   // F1
+            2: '\x1bOQ',   // F2
+            3: '\x1bOR',   // F3
+            4: '\x1bOS',   // F4
+            5: '\x1b[15~', // F5
+            6: '\x1b[17~', // F6
+            7: '\x1b[18~', // F7
+            8: '\x1b[19~', // F8
+            9: '\x1b[20~', // F9
+            0: '\x1b[21~', // F10
+        };
+
+        const seq = fnSequences[index];
+        if (seq) {
+            term.sendInput(seq);
+            setTimeout(fetchTmuxStatus, 100);
+        }
     }, [fetchTmuxStatus]);
+
+    const cycleTmuxWindow = useCallback(() => {
+        if (!terminalRef.current || tmuxWindows.length === 0) return;
+        setTmuxCycleIndex((prev) => {
+            const targetIdx = prev % tmuxWindows.length;
+            const targetWindow = tmuxWindows[targetIdx];
+            handleSelectWindow(targetWindow);
+            return (targetIdx + 1) % tmuxWindows.length;
+        });
+    }, [handleSelectWindow, tmuxWindows]);
 
     useEffect(() => {
         // Fetch initial tmux status
@@ -277,246 +299,137 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
-        if (!isCommandPickerOpen && !isAdvancedMenuOpen) return;
+        if (!isCommandPickerOpen) return;
         const handleClick = (event: MouseEvent) => {
             const target = event.target as Node;
             if (sidebarRef.current?.contains(target)) return;
             setIsCommandPickerOpen(false);
-            setIsAdvancedMenuOpen(false);
         };
         window.addEventListener('mousedown', handleClick);
         return () => window.removeEventListener('mousedown', handleClick);
-    }, [isCommandPickerOpen, isAdvancedMenuOpen]);
+    }, [isCommandPickerOpen]);
 
     useEffect(() => () => stopRepeat(), [stopRepeat]);
 
     const isConnected = connectionStatus === 'connected';
+    // Menu keyboards come from the configurator layouts (main / secondary / keyboard).
+    const menuOrder = [MAIN_MENU_KEYBOARD_ID, SECONDARY_MENU_KEYBOARD_ID, KEYBOARD_MENU_KEYBOARD_ID];
+    const availableMenuIds = menuOrder.filter((id) => config.keyboards.some((keyboard) => keyboard.id === id));
+    const fallbackMenuId = availableMenuIds[0] ?? config.keyboards[0]?.id ?? MAIN_MENU_KEYBOARD_ID;
+    const menuKeyboard =
+        config.keyboards.find((keyboard) => keyboard.id === menuId) ??
+        config.keyboards.find((keyboard) => keyboard.id === fallbackMenuId) ??
+        config.keyboards[0];
+    const menuMacros = menuKeyboard ? macrosByKeyboardId[menuKeyboard.id] ?? [] : [];
+    const menuSlots = menuKeyboard
+        ? menuKeyboard.grid
+              .flatMap((row, rowIdx) =>
+                  row.map((item, colIdx) => ({
+                      item,
+                      key: `${menuKeyboard.id}-${rowIdx}-${colIdx}`,
+                  })),
+              )
+              .filter((entry): entry is { item: SlotItem; key: string } => Boolean(entry.item))
+        : [];
 
-    const normalButtons = [
-        {
-            key: 'scroll-mode',
-            label: 'Scroll Navigation Bar',
-            shortLabel: 'Scroll',
-            icon: <ArrowBigUp className="h-4 w-4" />,
-            onClick: enterScrollMode,
-            tone: 'muted' as const,
-        },
-        {
-            key: 'next-window',
-            label: 'Next Active Window',
-            shortLabel: 'Window',
-            icon: <ArrowBigRightDash className="h-4 w-4" />,
-            onClick: handleNextWindow,
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'cycle-pane',
-            label: 'Cycle Pane',
-            shortLabel: 'Pane',
-            icon: <ArrowRightLeft className="h-4 w-4" />,
-            onClick: () => terminalRef.current?.sendInput('\x1b[1;5B'),  // Ctrl+Down
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'cmd-presets',
-            label: 'Command Presets Panel',
-            shortLabel: 'Cmds',
-            icon: <Command className="h-4 w-4" />,
-            onClick: () => setIsCommandPickerOpen(!isCommandPickerOpen),
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'enter',
-            label: 'Enter',
-            shortLabel: 'Enter',
-            icon: <span className="text-2xl font-bold leading-none">⏎</span>,
-            onClick: () => terminalRef.current?.sendInput('\r'),
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'escape',
-            label: 'ESC',
-            shortLabel: 'Esc',
-            icon: <span className="text-xs font-bold">ESC</span>,
-            onClick: () => terminalRef.current?.sendInput('\x1b'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'keyboard',
-            label: 'Main Actions Bar',
-            shortLabel: 'Keys',
-            icon: <Keyboard className="h-4 w-4" />,
-            // Show pagination controls without sending Page Up
-            onClick: () => setScrollMode(true),
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'advanced',
-            label: 'Utilities Panel',
-            shortLabel: 'More',
-            icon: <Ellipsis className="h-4 w-4" />,
-            onClick: () => {
+    const rotateMenu = useCallback(() => {
+        if (availableMenuIds.length <= 1) return;
+        const current = menuKeyboard?.id ?? menuId;
+        const currentIdx = Math.max(0, availableMenuIds.indexOf(current));
+        const nextIdx = (currentIdx + 1) % availableMenuIds.length;
+        setMenuId(availableMenuIds[nextIdx]);
+    }, [availableMenuIds, menuId, menuKeyboard?.id]);
+
+    const handleMenuAction = useCallback((action: ActionCode) => {
+        switch (action) {
+            case 'OPEN_MAIN_MENU':
+                if (menuId === KEYBOARD_MENU_KEYBOARD_ID) {
+                    terminalRef.current?.sendInput('\x1b');
+                }
+                setMenuId(MAIN_MENU_KEYBOARD_ID);
                 setIsCommandPickerOpen(false);
-                setIsAdvancedMenuOpen(!isAdvancedMenuOpen);
-            },
-            tone: 'muted' as const,
-        },
-    ];
+                return;
+            case 'OPEN_SECONDARY_MENU':
+                setMenuId(SECONDARY_MENU_KEYBOARD_ID);
+                setIsCommandPickerOpen(false);
+                return;
+            case 'OPEN_KEYBOARD_MENU':
+                setMenuId(KEYBOARD_MENU_KEYBOARD_ID);
+                setIsCommandPickerOpen(false);
+                terminalRef.current?.sendInput('\x1b[5~');
+                return;
+            case 'ROTATE_KEYBOARD':
+                rotateMenu();
+                return;
+            case 'OPEN_KEYBOARD_SETTINGS':
+                window.open('/keyboard-configurator/settings', '_blank');
+                return;
+            case 'TOGGLE_COMMAND_PRESETS':
+                setIsCommandPickerOpen((prev) => !prev);
+                return;
+            case 'OPEN_COMMANDER':
+                setIsCommanderOpen(true);
+                return;
+            case 'PASTE_CLIPBOARD':
+                handlePasteFromClipboard();
+                return;
+            case 'COPY_SELECTION':
+                handleCopySelection();
+                return;
+            case 'CYCLE_TMUX_WINDOW':
+                cycleTmuxWindow();
+                return;
+            default:
+                return;
+        }
+    }, [
+        cycleTmuxWindow,
+        handleCopySelection,
+        handlePasteFromClipboard,
+        menuId,
+        rotateMenu,
+    ]);
 
-    const scrollButtons = [
-        {
-            key: 'esc-key',
-            label: 'Esc',
-            icon: <span className="text-xs font-bold">ESC</span>,
-            onClick: () => terminalRef.current?.sendInput('\x1b'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'ctrl-c',
-            label: 'Ctrl+C',
-            icon: <span className="text-xs font-bold">Ctrl+C</span>,
-            onClick: () => terminalRef.current?.sendInput('\x03'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'tab',
-            label: 'Tab',
-            icon: <span className="text-xs font-bold">Tab</span>,
-            onClick: () => terminalRef.current?.sendInput('\t'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'enter',
-            label: 'Enter',
-            shortLabel: 'Enter',
-            icon: <CornerDownLeft className="h-4 w-4" />,
-            onClick: () => terminalRef.current?.sendInput('\r'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'arrow-left',
-            label: 'Left',
-            shortLabel: 'Left',
-            icon: <ArrowLeft className="h-4 w-4" />,
-            onClick: () => terminalRef.current?.sendInput('\x1b[D'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'arrow-right',
-            label: 'Right',
-            shortLabel: 'Right',
-            icon: <ArrowRight className="h-4 w-4" />,
-            onClick: () => terminalRef.current?.sendInput('\x1b[C'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'home',
-            label: 'Home',
-            shortLabel: 'Home',
-            icon: <HomeIcon className="h-4 w-4" />,
-            onClick: () => terminalRef.current?.sendInput('\x1b[H'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'end',
-            label: 'End',
-            icon: <span className="text-xs font-bold">End</span>,
-            onClick: () => terminalRef.current?.sendInput('\x1b[F'),
-            tone: 'muted' as const,
-        },
-        {
-            key: 'page-up',
-            label: 'Page Up',
-            shortLabel: 'Pg Up',
-            icon: <ArrowBigUp className="h-5 w-5" />,
-            onClick: handlePageUp,
-            tone: 'muted' as const,
-            repeatable: true,
-        },
-        {
-            key: 'page-down',
-            label: 'Page Down',
-            shortLabel: 'Pg Dn',
-            icon: <ArrowBigDown className="h-5 w-5" />,
-            onClick: handlePageDown,
-            tone: 'muted' as const,
-            repeatable: true,
-        },
-        {
-            key: 'line-up',
-            label: 'Line Up',
-            shortLabel: 'Up',
-            icon: <ArrowUp className="h-4 w-4" />,
-            onClick: handleLineUp,
-            tone: 'muted' as const,
-            repeatable: true,
-        },
-        {
-            key: 'line-down',
-            label: 'Line Down',
-            shortLabel: 'Down',
-            icon: <ArrowDown className="h-4 w-4" />,
-            onClick: handleLineDown,
-            tone: 'muted' as const,
-            repeatable: true,
-        },
-        {
-            key: 'paste',
-            label: 'Paste',
-            shortLabel: 'Paste',
-            icon: <ClipboardPaste className="h-4 w-4" />,
-            onClick: handlePasteFromClipboard,
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'copy-selection',
-            label: 'Copy',
-            shortLabel: 'Copy',
-            icon: <Copy className="h-5 w-5" />,
-            onClick: handleCopySelection,
-            tone: 'muted' as const,
-        },
-        {
-            key: 'fix',
-            label: 'fix',
-            icon: <span className="text-xs font-bold">fix</span>,
-            onClick: () => {
-                exitScrollMode();
-                setTimeout(() => {
-                    terminalRef.current?.sendInput('fix');
-                    setTimeout(() => terminalRef.current?.sendInput('\r'), 80);
-                }, 50);
-            },
-            tone: 'muted' as const,
-        },
-        {
-            key: 'skip',
-            label: 'skip',
-            icon: <span className="text-xs font-bold">skip</span>,
-            onClick: () => {
-                exitScrollMode();
-                setTimeout(() => {
-                    terminalRef.current?.sendInput('skip');
-                    setTimeout(() => terminalRef.current?.sendInput('\r'), 80);
-                }, 50);
-            },
-            tone: 'muted' as const,
-        },
-        {
-            key: 'scroll-escape',
-            label: 'Close Menu',
-            shortLabel: 'Back',
-            icon: <X className="h-4 w-4" />,
-            onClick: () => setScrollMode(false),
-            tone: 'muted' as const,
-        },
-    ];
+    const handleSlotPress = useCallback((item: SlotItem) => {
+        runSlotItem(item, menuMacros, {
+            sendInput: (value) => terminalRef.current?.sendInput(value),
+            executeCommand: (value, enter) => terminalRef.current?.execute(value, enter),
+            onAction: handleMenuAction,
+        });
+        if (item.type === 'special' && ['CTRL_RIGHT', 'CTRL_LEFT', 'ALT_LEFT', 'ALT_RIGHT', 'CTRL_B_N', 'ALT_S', 'ALT_Y', 'ALT_Z', 'F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8', 'F9', 'F10'].includes(item.code)) {
+            setTimeout(fetchTmuxStatus, 100);
+        }
+    }, [fetchTmuxStatus, handleMenuAction, menuMacros]);
+
+    const renderSlotIcon = (item: SlotItem, label: string) => {
+        if (item.type === 'action') {
+            switch (item.action) {
+                case 'OPEN_MAIN_MENU':
+                    return <X className="h-4 w-4" />;
+                case 'OPEN_SECONDARY_MENU':
+                    return <Ellipsis className="h-4 w-4" />;
+                case 'OPEN_KEYBOARD_MENU':
+                    return <Keyboard className="h-4 w-4" />;
+                case 'ROTATE_KEYBOARD':
+                    return <RotateCcw className="h-4 w-4" />;
+                case 'OPEN_KEYBOARD_SETTINGS':
+                    return <Settings className="h-4 w-4" />;
+                case 'TOGGLE_COMMAND_PRESETS':
+                    return <Command className="h-4 w-4" />;
+                case 'OPEN_COMMANDER':
+                    return <Bot className="h-4 w-4" />;
+                case 'PASTE_CLIPBOARD':
+                    return <ClipboardPaste className="h-4 w-4" />;
+                case 'COPY_SELECTION':
+                    return <Copy className="h-4 w-4" />;
+                case 'CYCLE_TMUX_WINDOW':
+                    return <ArrowBigRightDash className="h-4 w-4" />;
+                default:
+                    break;
+            }
+        }
+        return <span className="text-xs font-bold">{label}</span>;
+    };
 
     return (
         <div className="h-screen overflow-hidden bg-background p-2 sm:p-4 md:p-8">
@@ -574,65 +487,41 @@ export default function Home() {
                                         onClick={() => setIsCommandPickerOpen(false)}
                                     />
                                 </>
-                            ) : isAdvancedMenuOpen ? (
-                                <>
-                                    <StripeButton
-                                        key="next-window-all"
-                                        label="Next Window (All)"
-                                        shortLabel="All Win"
-                                        icon={<ArrowBigRightDash className="h-4 w-4" />}
-                                        onClick={() => {
-                                            terminalRef.current?.sendInput('\x02n');
-                                            setIsAdvancedMenuOpen(false);
-                                            setTimeout(fetchTmuxStatus, 100);
-                                        }}
-                                    />
-                                    <StripeButton
-                                        key="toggle-inactive"
-                                        label="Toggle Window Inactive"
-                                        shortLabel="Skip Win"
-                                        icon={<span className="text-sm font-mono">~</span>}
-                                        onClick={() => {
-                                            terminalRef.current?.sendInput('\x1bs');
-                                            setIsAdvancedMenuOpen(false);
-                                        }}
-                                    />
-                                    <StripeButton
-                                        key="advanced-close"
-                                        label="Close"
-                                        shortLabel="Close"
-                                        icon={<X className="h-4 w-4" />}
-                                        onClick={() => setIsAdvancedMenuOpen(false)}
-                                    />
-                                </>
                             ) : (
-                                (scrollMode ? scrollButtons : normalButtons).map((action) => (
-                                    <StripeButton
-                                        key={action.key}
-                                        label={action.label}
-                                        shortLabel={'shortLabel' in action ? action.shortLabel : undefined}
-                                        icon={action.icon}
-                                        tone={action.tone}
-                                        active={action.active}
-                                        disabled={action.disabled}
-                                        onClick={
-                                            () => {
-                                                if (action.repeatable && suppressClickRef.current) {
+                                menuSlots.map(({ item, key }) => {
+                                    const label = slotLabel(item, menuMacros);
+                                    const isRepeatable =
+                                        item.type === 'special' &&
+                                        ['PAGE_UP', 'PAGE_DOWN', 'ARROW_UP', 'ARROW_DOWN'].includes(item.code);
+                                    const isCommandToggle = item.type === 'action' && item.action === 'TOGGLE_COMMAND_PRESETS';
+                                    const disabled = isLoading || (!isConnected && slotRequiresConnection(item));
+                                    return (
+                                        <StripeButton
+                                            key={key}
+                                            label={label}
+                                            icon={renderSlotIcon(item, label)}
+                                            disabled={disabled}
+                                            onClick={() => {
+                                                if (isRepeatable && suppressClickRef.current) {
                                                     suppressClickRef.current = false;
                                                     return;
                                                 }
-                                                setIsCommandPickerOpen(false);
-                                                action.onClick();
-                                            }
-                                        }
-                                        {...(action.repeatable
-                                            ? makeRepeatHandlers(() => {
-                                                setIsCommandPickerOpen(false);
-                                                action.onClick();
-                                            })
-                                            : {})}
-                                    />
-                                ))
+                                                if (!isCommandToggle) {
+                                                    setIsCommandPickerOpen(false);
+                                                }
+                                                handleSlotPress(item);
+                                            }}
+                                            {...(isRepeatable
+                                                ? makeRepeatHandlers(() => {
+                                                    if (!isCommandToggle) {
+                                                        setIsCommandPickerOpen(false);
+                                                    }
+                                                    handleSlotPress(item);
+                                                })
+                                                : {})}
+                                        />
+                                    );
+                                })
                             )}
                         </>
                     ) : (
@@ -643,6 +532,12 @@ export default function Home() {
                         />
                     )}
                 </StripeButtonBar>
+                <TerminalCommander
+                    open={isCommanderOpen}
+                    onOpenChange={setIsCommanderOpen}
+                    terminalRef={terminalRef}
+                    isConnected={isConnected}
+                />
             </div>
         </div>
     );

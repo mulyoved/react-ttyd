@@ -90,7 +90,21 @@ type SpecialKeyDefinition = {
   isModifier?: boolean
 }
 
-type ActionCode = 'ROTATE_KEYBOARD' | 'OPEN_KEYBOARD_SETTINGS'
+export type ActionCode =
+  | 'ROTATE_KEYBOARD'
+  | 'OPEN_KEYBOARD_SETTINGS'
+  | 'OPEN_MAIN_MENU'
+  | 'OPEN_SECONDARY_MENU'
+  | 'OPEN_KEYBOARD_MENU'
+  | 'TOGGLE_COMMAND_PRESETS'
+  | 'OPEN_COMMANDER'
+  | 'PASTE_CLIPBOARD'
+  | 'COPY_SELECTION'
+  | 'CYCLE_TMUX_WINDOW'
+
+export const MAIN_MENU_KEYBOARD_ID = 'main_menu'
+export const SECONDARY_MENU_KEYBOARD_ID = 'secondary_menu'
+export const KEYBOARD_MENU_KEYBOARD_ID = 'keyboard_menu'
 
 export type SlotItem =
   | {
@@ -116,7 +130,17 @@ export type SlotItem =
 
 type KeyboardGrid = (SlotItem | null)[][]
 
-type TemplateId = 'blank' | 'qwerty' | 'navigation' | 'quality'
+type TemplateId = 'blank' | 'qwerty' | 'navigation'
+
+// Quality presets are deprecated; keep identifiers for sanitizing saved/imported configs.
+const QUALITY_KEYBOARD_ID = 'quality_keyboard'
+const QUALITY_MACRO_PREFIX = 'quality_'
+
+export const LIBRARY_KINDS = ['Key', 'Special', 'Macro', 'Action'] as const
+
+export type LibraryKind = (typeof LIBRARY_KINDS)[number]
+
+const DEFAULT_LIBRARY_KINDS: LibraryKind[] = ['Special', 'Macro', 'Action']
 
 export type MacroDef = {
   id: string
@@ -128,6 +152,16 @@ export type MacroDef = {
    * Your React Native app can interpret this however you want.
    */
   script: string
+}
+
+export type LibraryResult = {
+  id: string
+  item: SlotItem
+  kind: LibraryKind
+  title: string
+  description?: string
+  meta?: string[]
+  tooltip?: string
 }
 
 type KeyboardLayout = {
@@ -150,7 +184,6 @@ type KeyboardConfiguratorExportV1 = {
   keyboards: KeyboardLayout[]
 }
 
-type LibraryTab = 'keys' | 'special' | 'macros' | 'actions'
 
 type KeyboardFileV1 = {
   version: 1
@@ -245,7 +278,7 @@ const SPECIAL_KEY_BY_CODE = new Map<SpecialCode, SpecialKeyDefinition>(
   SPECIAL_KEY_CATALOG.map((entry) => [entry.code, entry]),
 )
 
-function getSpecialKey(code: SpecialCode | string): SpecialKeyDefinition | undefined {
+export function getSpecialKey(code: SpecialCode | string): SpecialKeyDefinition | undefined {
   return SPECIAL_KEY_BY_CODE.get(code as SpecialCode)
 }
 
@@ -269,7 +302,15 @@ export function formatSequence(sequence?: string): string {
 
 const ACTION_KEYS: Array<{ label: string; action: ActionCode }> = [
   { label: 'Rotate', action: 'ROTATE_KEYBOARD' },
-  { label: 'Config', action: 'OPEN_KEYBOARD_SETTINGS' },
+  { label: 'Settings', action: 'OPEN_KEYBOARD_SETTINGS' },
+  { label: 'Main menu', action: 'OPEN_MAIN_MENU' },
+  { label: 'Secondary menu', action: 'OPEN_SECONDARY_MENU' },
+  { label: 'Keyboard menu', action: 'OPEN_KEYBOARD_MENU' },
+  { label: 'Command presets', action: 'TOGGLE_COMMAND_PRESETS' },
+  { label: 'Commander', action: 'OPEN_COMMANDER' },
+  { label: 'Paste', action: 'PASTE_CLIPBOARD' },
+  { label: 'Copy', action: 'COPY_SELECTION' },
+  { label: 'Cycle tmux', action: 'CYCLE_TMUX_WINDOW' },
 ]
 
 const CHAR_ROWS = {
@@ -280,17 +321,6 @@ const CHAR_ROWS = {
 }
 
 function buildDefaultMacros(): MacroDef[] {
-  const quality = [
-    { id: 'quality_auto', name: 'Quality: Auto', label: 'Auto' },
-    { id: 'quality_144p', name: 'Quality: 144p', label: '144p' },
-    { id: 'quality_240p', name: 'Quality: 240p', label: '240p' },
-    { id: 'quality_360p', name: 'Quality: 360p', label: '360p' },
-    { id: 'quality_480p', name: 'Quality: 480p', label: '480p' },
-    { id: 'quality_720p', name: 'Quality: 720p', label: '720p' },
-    { id: 'quality_1080p', name: 'Quality: 1080p', label: '1080p' },
-    { id: 'quality_4k', name: 'Quality: 4K', label: '4K' },
-  ]
-
   const nav = [
     { id: 'nav_back', name: 'Navigation: Back', label: 'Back' },
     { id: 'nav_forward', name: 'Navigation: Forward', label: 'Fwd' },
@@ -304,19 +334,27 @@ function buildDefaultMacros(): MacroDef[] {
     { id: 'sys_screenshot', name: 'System: Screenshot', label: 'Shot' },
   ]
 
+  const commands = [
+    { id: 'cmd_fix', name: 'Command: fix', label: 'fix', script: { type: 'command', value: 'fix' } },
+    { id: 'cmd_skip', name: 'Command: skip', label: 'skip', script: { type: 'command', value: 'skip' } },
+  ]
+
   const toMacro = (m: { id: string; name: string; label: string }, category: string): MacroDef => ({
     ...m,
     category,
-    script:
-      category === 'Quality'
-        ? JSON.stringify({ type: 'setQuality', value: m.label }, null, 2)
-        : JSON.stringify({ type: 'action', name: m.id }, null, 2),
+    script: JSON.stringify({ type: 'action', name: m.id }, null, 2),
   })
 
   return [
-    ...quality.map((m) => toMacro(m, 'Quality')),
     ...nav.map((m) => toMacro(m, 'Navigation')),
     ...system.map((m) => toMacro(m, 'System')),
+    ...commands.map((m) => ({
+      id: m.id,
+      name: m.name,
+      label: m.label,
+      category: 'Commands',
+      script: JSON.stringify(m.script, null, 2),
+    })),
   ]
 }
 
@@ -397,34 +435,81 @@ function applyTemplate(template: TemplateId): KeyboardGrid {
     // Others empty
     return g
   }
+  return emptyGrid()
+}
 
-  // quality
+// Default menu layouts mirror the button sets used in the example pages.
+function buildMainMenuGrid(): KeyboardGrid {
   const g = emptyGrid()
-  // keep only macros that exist; if a macro doesn't exist, it will still reference by id
-  const row0: SlotItem[] = [
-    { type: 'macro', macroId: 'quality_auto' },
-    { type: 'macro', macroId: 'quality_144p' },
-    { type: 'macro', macroId: 'quality_240p' },
-    { type: 'macro', macroId: 'quality_360p' },
-    { type: 'macro', macroId: 'quality_480p' },
-    { type: 'macro', macroId: 'quality_720p' },
-    { type: 'macro', macroId: 'quality_1080p' },
-    { type: 'macro', macroId: 'quality_4k' },
-    { type: 'macro', macroId: 'sys_mute' },
-    { type: 'macro', macroId: 'sys_fullscreen' },
-  ]
-  g[0] = row0
-  g[1] = [
-    { type: 'special', code: 'ESC' },
-    { type: 'special', code: 'TAB' },
+  g[0] = [
+    { type: 'action', action: 'OPEN_KEYBOARD_MENU', label: 'Keys' },
+    { type: 'special', code: 'CTRL_RIGHT', label: 'Window' },
+    { type: 'special', code: 'CTRL_DOWN', label: 'Pane' },
+    { type: 'action', action: 'TOGGLE_COMMAND_PRESETS', label: 'Cmds' },
     { type: 'special', code: 'ENTER' },
-    { type: 'special', code: 'BACKSPACE' },
-    { type: 'special', code: 'SPACE' },
-    { type: 'macro', macroId: 'sys_screenshot' },
+    { type: 'special', code: 'ESC' },
+    { type: 'action', action: 'OPEN_SECONDARY_MENU', label: 'More' },
+    { type: 'action', action: 'ROTATE_KEYBOARD', label: 'Rotate' },
+    { type: 'action', action: 'OPEN_KEYBOARD_SETTINGS', label: 'Config' },
+    null,
+  ]
+  return g
+}
+
+function buildSecondaryMenuGrid(): KeyboardGrid {
+  const g = emptyGrid()
+  g[0] = [
+    { type: 'special', code: 'CTRL_B_N', label: 'Next all' },
+    { type: 'special', code: 'ALT_S', label: '~' },
+    { type: 'action', action: 'OPEN_MAIN_MENU', label: 'Back' },
+    { type: 'action', action: 'OPEN_KEYBOARD_MENU', label: 'Keys' },
     null,
     null,
-    { type: 'action', action: 'ROTATE_KEYBOARD' },
-    { type: 'action', action: 'OPEN_KEYBOARD_SETTINGS' },
+    null,
+    null,
+    null,
+    null,
+  ]
+  return g
+}
+
+function buildKeyboardMenuGrid(): KeyboardGrid {
+  const g = emptyGrid()
+  g[0] = [
+    { type: 'action', action: 'OPEN_MAIN_MENU', label: 'Back' },
+    { type: 'action', action: 'OPEN_COMMANDER', label: 'Cmdr' },
+    { type: 'action', action: 'TOGGLE_COMMAND_PRESETS', label: 'Cmds' },
+    { type: 'action', action: 'CYCLE_TMUX_WINDOW', label: 'Cycle' },
+    { type: 'special', code: 'CTRL_L', label: 'Clear' },
+    { type: 'special', code: 'CTRL_G', label: 'Ctrl+G' },
+    { type: 'special', code: 'ENTER' },
+    { type: 'special', code: 'ESC' },
+    { type: 'action', action: 'PASTE_CLIPBOARD', label: 'Paste' },
+    { type: 'action', action: 'COPY_SELECTION', label: 'Copy' },
+  ]
+  g[1] = [
+    { type: 'special', code: 'TAB' },
+    { type: 'special', code: 'CTRL_C', label: 'Ctrl+C' },
+    { type: 'special', code: 'ARROW_LEFT' },
+    { type: 'special', code: 'ARROW_RIGHT' },
+    { type: 'special', code: 'ARROW_UP' },
+    { type: 'special', code: 'ARROW_DOWN' },
+    { type: 'special', code: 'HOME' },
+    { type: 'special', code: 'END' },
+    { type: 'special', code: 'PAGE_UP' },
+    { type: 'special', code: 'PAGE_DOWN' },
+  ]
+  g[2] = [
+    { type: 'macro', macroId: 'cmd_fix' },
+    { type: 'macro', macroId: 'cmd_skip' },
+    { type: 'action', action: 'OPEN_SECONDARY_MENU', label: 'More' },
+    { type: 'action', action: 'OPEN_KEYBOARD_SETTINGS', label: 'Config' },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
   ]
   return g
 }
@@ -432,21 +517,39 @@ function applyTemplate(template: TemplateId): KeyboardGrid {
 function buildDefaultConfig(): KeyboardConfiguratorExportV1 {
   const macros = buildDefaultMacros()
 
-  const quality: KeyboardLayout = {
-    id: 'quality_keyboard',
-    name: 'Quality Keyboard',
+  const mainMenu: KeyboardLayout = {
+    id: MAIN_MENU_KEYBOARD_ID,
+    name: 'Main Menu',
     builtIn: true,
     active: true,
     rotationOrder: 0,
-    grid: applyTemplate('quality'),
+    grid: buildMainMenuGrid(),
+  }
+
+  const secondaryMenu: KeyboardLayout = {
+    id: SECONDARY_MENU_KEYBOARD_ID,
+    name: 'Secondary Menu',
+    builtIn: true,
+    active: true,
+    rotationOrder: 1,
+    grid: buildSecondaryMenuGrid(),
+  }
+
+  const keyboardMenu: KeyboardLayout = {
+    id: KEYBOARD_MENU_KEYBOARD_ID,
+    name: 'Keyboard Menu',
+    builtIn: true,
+    active: true,
+    rotationOrder: 2,
+    grid: buildKeyboardMenuGrid(),
   }
 
   const navigation: KeyboardLayout = {
     id: 'navigation_keyboard',
     name: 'Navigation Keyboard',
     builtIn: true,
-    active: true,
-    rotationOrder: 1,
+    active: false,
+    rotationOrder: 3,
     grid: applyTemplate('navigation'),
   }
 
@@ -455,7 +558,7 @@ function buildDefaultConfig(): KeyboardConfiguratorExportV1 {
     name: 'QWERTY Keyboard',
     builtIn: true,
     active: false,
-    rotationOrder: 2,
+    rotationOrder: 4,
     grid: applyTemplate('qwerty'),
   }
 
@@ -465,9 +568,9 @@ function buildDefaultConfig(): KeyboardConfiguratorExportV1 {
       generator: 'keyboard-configurator',
       generatedAt: new Date().toISOString(),
     },
-    defaultKeyboardId: quality.id,
+    defaultKeyboardId: mainMenu.id,
     macros,
-    keyboards: [quality, navigation, qwerty],
+    keyboards: [mainMenu, secondaryMenu, keyboardMenu, navigation, qwerty],
   }
 }
 
@@ -486,6 +589,31 @@ function safeIdFromName(name: string): string {
 
 function fileNameFromKeyboardName(name: string): string {
   return safeIdFromName(name) || 'keyboard'
+}
+
+function isQualityMacroId(id: string): boolean {
+  return id.startsWith(QUALITY_MACRO_PREFIX)
+}
+
+// Strip deprecated Quality macros from a grid by clearing any slots that reference them.
+function stripQualityFromGrid(grid: KeyboardGrid): KeyboardGrid {
+  return grid.map((row) =>
+    row.map((item) => (item?.type === 'macro' && isQualityMacroId(item.macroId) ? null : item)),
+  )
+}
+
+// Remove the Quality keyboard and clean Quality macro references from remaining layouts.
+function stripQualityFromKeyboards(keyboards: KeyboardLayout[]): KeyboardLayout[] {
+  return keyboards
+    .filter((keyboard) => keyboard.id !== QUALITY_KEYBOARD_ID)
+    .map((keyboard) => ({
+      ...keyboard,
+      grid: stripQualityFromGrid(keyboard.grid),
+    }))
+}
+
+function stripQualityFromMacros(macros: MacroDef[]): MacroDef[] {
+  return macros.filter((macro) => !isQualityMacroId(macro.id))
 }
 
 function collectMacroIds(grid: KeyboardGrid): Set<string> {
@@ -569,15 +697,16 @@ function getDragPayload(ev: React.DragEvent): DragPayload | null {
 
 type KeyboardConfiguratorContextValue = {
   config: KeyboardConfiguratorExportV1
+  macrosByKeyboardId: Record<string, MacroDef[]>
   selectedKeyboardId: string
   selectedKeyboard: KeyboardLayout
   activeKeyboards: KeyboardLayout[]
   selectedSlot: { row: number; col: number } | null
   setSelectedSlot: React.Dispatch<React.SetStateAction<{ row: number; col: number } | null>>
-  libraryTab: LibraryTab
-  setLibraryTab: React.Dispatch<React.SetStateAction<LibraryTab>>
   search: string
   setSearch: React.Dispatch<React.SetStateAction<string>>
+  libraryKinds: LibraryKind[]
+  toggleLibraryKind: (kind: LibraryKind) => void
   dragOver: { row: number; col: number } | null
   setDragOver: React.Dispatch<React.SetStateAction<{ row: number; col: number } | null>>
   trashOver: boolean
@@ -637,10 +766,7 @@ type KeyboardConfiguratorContextValue = {
   onSlotDrop: (ev: React.DragEvent, row: number, col: number) => void
   onTrashDragOver: (ev: React.DragEvent) => void
   onTrashDrop: (ev: React.DragEvent) => void
-  paletteCharacters: SlotItem[]
-  paletteSpecial: SlotItem[]
-  paletteActions: SlotItem[]
-  paletteMacros: Array<[string, MacroDef[]]>
+  libraryResults: LibraryResult[]
   selectedItem: SlotItem | null
   selectedSpecial: SpecialKeyDefinition | null
   selectedItemLabel: string
@@ -658,13 +784,21 @@ export function useKeyboardConfigurator() {
   return ctx
 }
 
-function isLibraryTab(value: string | null): value is LibraryTab {
-  return value === 'keys' || value === 'special' || value === 'macros' || value === 'actions'
-}
-
 function resolveKeyboardId(requestedId: string | null | undefined, keyboards: KeyboardLayout[], fallbackId: string): string {
   if (requestedId && keyboards.some((k) => k.id === requestedId)) return requestedId
   return fallbackId || keyboards[0]?.id || ''
+}
+
+// Parse pipe-delimited library kinds from the URL; empty string means "no kinds selected".
+function parseLibraryKinds(param: string | null): LibraryKind[] {
+  if (param === null) return DEFAULT_LIBRARY_KINDS
+  if (param.trim() === '') return []
+  const parts = param
+    .split('|')
+    .map((value) => value.trim())
+    .filter(Boolean)
+  const selected = LIBRARY_KINDS.filter((kind) => parts.includes(kind))
+  return selected.length > 0 ? selected : DEFAULT_LIBRARY_KINDS
 }
 
 // -----------------------------
@@ -679,7 +813,7 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
   // Capture initial URL state once; the provider keeps state in sync from then on.
   const initialUrlState = React.useRef({
     keyboard: searchParams.get('keyboard'),
-    libraryTab: searchParams.get('libraryTab'),
+    libraryKinds: searchParams.get('libraryKinds'),
   })
 
   const defaultState = React.useMemo(() => {
@@ -708,10 +842,10 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
   const [isSaving, setIsSaving] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(true)
   const [selectedSlot, setSelectedSlot] = React.useState<{ row: number; col: number } | null>(null)
-  const [libraryTab, setLibraryTab] = React.useState<LibraryTab>(() => {
-    return isLibraryTab(initialUrlState.current.libraryTab) ? initialUrlState.current.libraryTab : 'keys'
-  })
   const [search, setSearch] = React.useState('')
+  const [libraryKinds, setLibraryKinds] = React.useState<LibraryKind[]>(() => {
+    return parseLibraryKinds(initialUrlState.current.libraryKinds)
+  })
   const [dragOver, setDragOver] = React.useState<{ row: number; col: number } | null>(null)
   const [trashOver, setTrashOver] = React.useState(false)
 
@@ -740,6 +874,18 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
   const selectKeyboard = React.useCallback((id: string) => {
     setSelectedKeyboardId(id)
     setSelectedSlot(null)
+  }, [])
+
+  const toggleLibraryKind = React.useCallback((kind: LibraryKind) => {
+    setLibraryKinds((prev) => {
+      const next = new Set(prev)
+      if (next.has(kind)) {
+        next.delete(kind)
+      } else {
+        next.add(kind)
+      }
+      return LIBRARY_KINDS.filter((value) => next.has(value))
+    })
   }, [])
 
   const updateMacrosForKeyboard = React.useCallback(
@@ -789,11 +935,30 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
 
       files.forEach((file) => {
         const { data: fileData } = file
-        keyboards.push(fileData.keyboard)
-        macrosById[fileData.keyboard.id] = fileData.macros ?? []
-        fileNames[fileData.keyboard.id] = file.fileName
-        if (!defaultId && fileData.isDefault) defaultId = fileData.keyboard.id
+        if (fileData.keyboard.id === QUALITY_KEYBOARD_ID) return
+        const sanitizedKeyboard = {
+          ...fileData.keyboard,
+          grid: stripQualityFromGrid(fileData.keyboard.grid),
+        }
+        const sanitizedMacros = stripQualityFromMacros(fileData.macros ?? [])
+        keyboards.push(sanitizedKeyboard)
+        macrosById[sanitizedKeyboard.id] = filterMacrosForGrid(sanitizedMacros, sanitizedKeyboard.grid)
+        fileNames[sanitizedKeyboard.id] = file.fileName
+        if (!defaultId && fileData.isDefault) defaultId = sanitizedKeyboard.id
       })
+
+      if (keyboards.length === 0) {
+        const resolvedId = resolveKeyboardId(requestedId, defaultState.config.keyboards, defaultState.config.defaultKeyboardId)
+        setConfig({
+          ...defaultState.config,
+          macros: defaultState.macrosByKeyboard[resolvedId] ?? [],
+        })
+        selectKeyboard(resolvedId)
+        setMacrosByKeyboardId(defaultState.macrosByKeyboard)
+        setFileNameByKeyboardId({})
+        setPendingMetadataIds(new Set())
+        return
+      }
 
       if (!defaultId && keyboards.length > 0) defaultId = keyboards[0].id
 
@@ -840,6 +1005,8 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
     }))
   }, [macrosByKeyboardId, selectedKeyboardId])
 
+  const serializedLibraryKinds = React.useMemo(() => libraryKinds.join('|'), [libraryKinds])
+
   // Keep the editor state reflected in the URL for sharing/reload.
   React.useEffect(() => {
     const currentQuery = searchParams.toString()
@@ -849,13 +1016,15 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
     } else {
       nextParams.delete('keyboard')
     }
+    // Always write libraryKinds so empty selections round-trip in the URL.
+    nextParams.set('libraryKinds', serializedLibraryKinds)
     nextParams.delete('rightTab')
-    nextParams.set('libraryTab', libraryTab)
+    nextParams.delete('libraryTab')
     const nextQuery = nextParams.toString()
     if (nextQuery === currentQuery) return
     const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname
     router.replace(nextUrl, { scroll: false })
-  }, [libraryTab, pathname, router, searchParams, selectedKeyboardId])
+  }, [pathname, router, searchParams, selectedKeyboardId, serializedLibraryKinds])
 
   const urlQueryString = React.useMemo(() => {
     const params = new URLSearchParams(searchParams.toString())
@@ -864,10 +1033,11 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
     } else {
       params.delete('keyboard')
     }
+    params.set('libraryKinds', serializedLibraryKinds)
     params.delete('rightTab')
-    params.set('libraryTab', libraryTab)
+    params.delete('libraryTab')
     return params.toString()
-  }, [libraryTab, searchParams, selectedKeyboardId])
+  }, [searchParams, selectedKeyboardId, serializedLibraryKinds])
 
   const selectedKeyboard = React.useMemo(() => {
     return config.keyboards.find((k) => k.id === selectedKeyboardId) ?? config.keyboards[0]
@@ -1271,6 +1441,29 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
       grid: normalizeGrid(k.grid),
     }))
 
+    // Drop deprecated Quality data and clear any slots that referenced it.
+    repaired.keyboards = stripQualityFromKeyboards(repaired.keyboards)
+    repaired.macros = stripQualityFromMacros(repaired.macros)
+
+    if (repaired.keyboards.length === 0) {
+      const defaults = buildDefaultConfig()
+      const macrosByKeyboard = buildMacrosByKeyboardId(defaults.keyboards, defaults.macros)
+      const defaultId = defaults.defaultKeyboardId || defaults.keyboards[0]?.id || ''
+      setConfig({
+        ...defaults,
+        defaultKeyboardId: defaultId,
+        macros: macrosByKeyboard[defaultId] ?? [],
+      })
+      setMacrosByKeyboardId(macrosByKeyboard)
+      setFileNameByKeyboardId({})
+      setPendingMetadataIds(new Set(defaults.keyboards.map((k) => k.id)))
+      selectKeyboard(defaultId)
+      setImportOpen(false)
+      setImportText('')
+      toast.success('Configuration imported.')
+      return
+    }
+
     if (!repaired.keyboards.find((k) => k.id === repaired.defaultKeyboardId)) {
       repaired.defaultKeyboardId = repaired.keyboards[0]?.id ?? ''
     }
@@ -1401,75 +1594,143 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
   }
 
   // -----------------------------
-  // Derived lists for palette
+  // Unified library search results
   // -----------------------------
 
-  const paletteCharacters = React.useMemo(() => {
-    // all characters we expose: letters + numbers + common punctuation
-    const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
-    const digits = '0123456789'.split('')
-    const punct = ['.', ',', ';', ':', '/', '\\', "'", '"', '-', '_', '=', '+', '(', ')', '[', ']', '{', '}', '?', '!', '@', '#', '$', '%', '^', '&', '*']
-    const all = [...digits, ...letters, ...punct]
+  const libraryResults = React.useMemo(() => {
     const q = search.trim().toLowerCase()
-    const filtered = !q
-      ? all
-      : all.filter((c) => c.toLowerCase().includes(q))
-    return filtered.map<SlotItem>((c) => ({ type: 'character', char: c }))
-  }, [search])
+    // Keep ordering stable for quick scanning: keys → special → macros → actions.
+    const results: LibraryResult[] = []
+    const selectedKinds = new Set(libraryKinds)
 
-  const paletteSpecial = React.useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return SPECIAL_KEY_CATALOG
-      .filter((entry) => {
-        if (!q) return true
-        const haystack = [
-          entry.name,
-          entry.label,
-          entry.description,
-          entry.code,
-          entry.sequence ? formatSequence(entry.sequence) : '',
-          ...(entry.aliases ?? []),
-        ]
-          .filter(Boolean)
-          .map((value) => value.toLowerCase())
-        return haystack.some((value) => value.includes(q))
-      })
-      .map<SlotItem>((entry) => ({
-        type: 'special',
-        code: entry.code,
-        ...(entry.label ? { label: entry.label } : {}),
-      }))
-  }, [search])
+    // Keys (characters)
+    if (selectedKinds.has('Key')) {
+      const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+      const digits = '0123456789'.split('')
+      const punct = [
+        '.',
+        ',',
+        ';',
+        ':',
+        '/',
+        '\\',
+        "'",
+        '"',
+        '-',
+        '_',
+        '=',
+        '+',
+        '(',
+        ')',
+        '[',
+        ']',
+        '{',
+        '}',
+        '?',
+        '!',
+        '@',
+        '#',
+        '$',
+        '%',
+        '^',
+        '&',
+        '*',
+      ]
+      const allChars = [...digits, ...letters, ...punct]
+      allChars
+        .filter((c) => !q || c.toLowerCase().includes(q))
+        .forEach((c, idx) => {
+          const item: SlotItem = { type: 'character', char: c }
+          results.push({
+            id: `char-${idx}-${c}`,
+            item,
+            kind: 'Key',
+            title: slotLabel(item, config.macros),
+            description: 'Character key',
+            tooltip: slotTooltip(item, config.macros),
+          })
+        })
+    }
 
-  const paletteActions = React.useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return ACTION_KEYS.filter((a) => !q || a.label.toLowerCase().includes(q) || a.action.toLowerCase().includes(q)).map<SlotItem>((a) => ({
-      type: 'action',
-      action: a.action,
-      label: a.label,
-    }))
-  }, [search])
+    // Special keys
+    if (selectedKinds.has('Special')) {
+      SPECIAL_KEY_CATALOG
+        .filter((entry) => {
+          if (!q) return true
+          const haystack = [
+            entry.name,
+            entry.label,
+            entry.description,
+            entry.code,
+            entry.sequence ? formatSequence(entry.sequence) : '',
+            ...(entry.aliases ?? []),
+          ]
+            .filter(Boolean)
+            .map((value) => value.toLowerCase())
+          return haystack.some((value) => value.includes(q))
+        })
+        .forEach((entry) => {
+          const item: SlotItem = {
+            type: 'special',
+            code: entry.code,
+            ...(entry.label ? { label: entry.label } : {}),
+          }
+          const sequence = entry.sequence ? formatSequence(entry.sequence) : '—'
+          results.push({
+            id: `special-${entry.code}`,
+            item,
+            kind: 'Special',
+            title: slotLabel(item, config.macros),
+            description: entry.description,
+            meta: [`Sequence: ${entry.sequence ? sequence : '(none)'}`],
+            tooltip: slotTooltip(item, config.macros),
+          })
+        })
+    }
 
-  const paletteMacros = React.useMemo(() => {
-    const q = search.trim().toLowerCase()
-    const filtered = config.macros.filter(
-      (m) =>
-        !q ||
-        m.name.toLowerCase().includes(q) ||
-        m.label.toLowerCase().includes(q) ||
-        m.category.toLowerCase().includes(q) ||
-        m.id.toLowerCase().includes(q),
-    )
-    // Group by category (stable)
-    const byCat = new Map<string, MacroDef[]>()
-    filtered.forEach((m) => {
-      const key = m.category || 'Uncategorized'
-      const arr = byCat.get(key) ?? []
-      arr.push(m)
-      byCat.set(key, arr)
-    })
-    return Array.from(byCat.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  }, [config.macros, search])
+    // Macros (search matches name/label/category/id only; script content is excluded by design)
+    if (selectedKinds.has('Macro')) {
+      config.macros
+        .filter((macro) => {
+          if (!q) return true
+          const haystack = [macro.name, macro.label, macro.category, macro.id]
+            .filter(Boolean)
+            .map((value) => value.toLowerCase())
+          return haystack.some((value) => value.includes(q))
+        })
+        .forEach((macro) => {
+          const item: SlotItem = { type: 'macro', macroId: macro.id, label: macro.label }
+          results.push({
+            id: `macro-${macro.id}`,
+            item,
+            kind: 'Macro',
+            title: slotLabel(item, config.macros),
+            description: `Macro: ${macro.name}`,
+            meta: macro.category ? [`Category: ${macro.category}`] : undefined,
+            tooltip: slotTooltip(item, config.macros),
+          })
+        })
+    }
+
+    // Actions
+    if (selectedKinds.has('Action')) {
+      ACTION_KEYS
+        .filter((action) => !q || action.label.toLowerCase().includes(q) || action.action.toLowerCase().includes(q))
+        .forEach((action) => {
+          const item: SlotItem = { type: 'action', action: action.action, label: action.label }
+          results.push({
+            id: `action-${action.action}`,
+            item,
+            kind: 'Action',
+            title: slotLabel(item, config.macros),
+            description: `Action: ${action.action}`,
+            tooltip: slotTooltip(item, config.macros),
+          })
+        })
+    }
+
+    return results
+  }, [config.macros, libraryKinds, search])
 
   // -----------------------------
   // Selected slot helpers
@@ -1493,15 +1754,16 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
 
   const value: KeyboardConfiguratorContextValue = {
     config,
+    macrosByKeyboardId,
     selectedKeyboardId,
     selectedKeyboard,
     activeKeyboards,
     selectedSlot,
     setSelectedSlot,
-    libraryTab,
-    setLibraryTab,
     search,
     setSearch,
+    libraryKinds,
+    toggleLibraryKind,
     dragOver,
     setDragOver,
     trashOver,
@@ -1561,10 +1823,7 @@ export function KeyboardConfiguratorProvider({ children }: { children: React.Rea
     onSlotDrop,
     onTrashDragOver,
     onTrashDrop,
-    paletteCharacters,
-    paletteSpecial,
-    paletteActions,
-    paletteMacros,
+    libraryResults,
     selectedItem,
     selectedSpecial,
     selectedItemLabel,

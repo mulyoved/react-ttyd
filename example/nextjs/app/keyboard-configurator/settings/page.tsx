@@ -64,27 +64,28 @@ export default function KeyboardConfiguratorSettingsPage() {
     : '/keyboard-configurator'
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-border bg-secondary-background">
-        <div className="flex w-full flex-col gap-3 px-4 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8 2xl:mx-auto 2xl:max-w-[1600px]">
-          <div className="min-w-0">
+    <div className="h-screen">
+      {/* Full-height layout: left sidebar header + scrollable settings content. */}
+      <div className="grid h-full grid-cols-[minmax(220px,280px)_minmax(0,1fr)]">
+        <aside className="flex h-full flex-col gap-4 border-r border-border bg-secondary-background px-4 py-4">
+          <div className="space-y-2">
             <div className="flex items-center gap-2">
               <FileJson className="h-5 w-5" />
               <h1 className="text-xl font-heading">Keyboard Configurator</h1>
               <Badge variant="neutral">Export v1</Badge>
             </div>
-            <p className="mt-1 text-sm text-foreground/70">
+            <p className="text-sm text-foreground/70">
               Build keyboard layouts and macros, then copy/paste JSON into your React Native app.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="neutral" asChild>
+          <div className="flex flex-col gap-2">
+            <Button variant="neutral" size="sm" asChild>
               <Link href={editorHref}>Back to editor</Link>
             </Button>
             <Dialog open={importOpen} onOpenChange={setImportOpen}>
               <DialogTrigger asChild>
-                <Button variant="neutral">
+                <Button variant="neutral" size="sm">
                   <Upload className="h-4 w-4" />
                   Import JSON
                 </Button>
@@ -117,7 +118,7 @@ export default function KeyboardConfiguratorSettingsPage() {
 
             <Dialog open={exportOpen} onOpenChange={setExportOpen}>
               <DialogTrigger asChild>
-                <Button variant="neutral">
+                <Button variant="neutral" size="sm">
                   <Copy className="h-4 w-4" />
                   Export JSON
                 </Button>
@@ -141,10 +142,10 @@ export default function KeyboardConfiguratorSettingsPage() {
               </DialogContent>
             </Dialog>
           </div>
-        </div>
-      </header>
+        </aside>
 
-      <main className="grid w-full grid-cols-1 gap-6 px-4 py-6 sm:px-6 lg:px-8 2xl:mx-auto 2xl:max-w-[1600px]">
+        <main className="h-full min-h-0 overflow-auto p-4">
+          <div className="grid w-full min-h-0 grid-cols-1 gap-4">
         {/* Keyboards */}
         <section className="space-y-6 min-w-0">
           <Card>
@@ -189,7 +190,6 @@ export default function KeyboardConfiguratorSettingsPage() {
                             <SelectItem value="blank">Blank</SelectItem>
                             <SelectItem value="qwerty">QWERTY</SelectItem>
                             <SelectItem value="navigation">Navigation</SelectItem>
-                            <SelectItem value="quality">Quality</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -386,7 +386,9 @@ export default function KeyboardConfiguratorSettingsPage() {
             </CardContent>
           </Card>
         </section>
-      </main>
+          </div>
+        </main>
+      </div>
 
       {/* Delete confirmation */}
       <Dialog open={deleteKeyboardOpen} onOpenChange={setDeleteKeyboardOpen}>

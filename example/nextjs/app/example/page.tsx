@@ -9,13 +9,37 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Github, Zap, Bot, ChevronDown, ChevronUp, Eraser, Command, ArrowDownUp, ArrowBigRightDash, X } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
+import {
+    ArrowBigRightDash,
+    Bot,
+    ChevronDown,
+    ChevronUp,
+    ClipboardPaste,
+    Command,
+    Copy,
+    Ellipsis,
+    Github,
+    Keyboard,
+    RotateCcw,
+    Settings,
+    X,
+    Zap,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { StripeButtonBar, StripeButton, SideButtonOverlay } from '@/components/stripe-button-bar';
 import { commandPresets, type CommandPreset, type CommandStep } from '../configure';
+import {
+    KEYBOARD_MENU_KEYBOARD_ID,
+    MAIN_MENU_KEYBOARD_ID,
+    SECONDARY_MENU_KEYBOARD_ID,
+    KeyboardConfiguratorProvider,
+    slotLabel,
+    useKeyboardConfigurator,
+    type ActionCode,
+    type SlotItem,
+} from '../keyboard-configurator/configurator-context';
+import { runSlotItem, slotRequiresConnection } from '@/lib/keyboard-runtime';
+import { TerminalCommander } from '@/components/terminal-commander';
 
 // Dynamic import with SSR disabled
 const Ttyd = dynamic(
@@ -30,31 +54,22 @@ const Ttyd = dynamic(
     }
 );
 
-// Predefined keyboard shortcuts - using string literals to avoid SSR issues
-const keyboardShortcuts = [
-    { name: 'Ctrl+C', key: '\x03', description: 'Interrupt/Cancel current process' },
-    { name: 'Ctrl+D', key: '\x04', description: 'End of file (EOF) / Exit' },
-    { name: 'Ctrl+Z', key: '\x1a', description: 'Suspend current process' },
-    { name: 'Ctrl+A', key: '\x01', description: 'Move cursor to beginning of line' },
-    { name: 'Ctrl+E', key: '\x05', description: 'Move cursor to end of line' },
-    { name: 'Ctrl+K', key: '\x0b', description: 'Kill/Delete from cursor to end of line' },
-    { name: 'Ctrl+U', key: '\x15', description: 'Kill/Delete from cursor to beginning of line' },
-    { name: 'Ctrl+W', key: '\x17', description: 'Delete word before cursor' },
-    { name: 'Ctrl+L', key: '\x0c', description: 'Clear screen' },
-    { name: 'Ctrl+R', key: '\x12', description: 'Reverse search command history' },
-    { name: 'Tab', key: '\x09', description: 'Auto-complete' },
-    { name: 'Escape', key: '\x1b', description: 'Escape key' },
-];
-
 export default function Home() {
+    return (
+        <KeyboardConfiguratorProvider>
+            <ExampleContent />
+        </KeyboardConfiguratorProvider>
+    );
+}
+
+function ExampleContent() {
     const terminalRef = useRef<TtydHandle>(null);
     const [connectionKey, setConnectionKey] = useState(0);
     const [connectionStatus, setConnectionStatus] = useState<'disconnected' | 'connected' | 'error'>('disconnected');
     const [outputLog, setOutputLog] = useState<string[]>([]);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isCommanderOpen, setIsCommanderOpen] = useState(false);
     const [isCommandPickerOpen, setIsCommandPickerOpen] = useState(false);
-    const [commandInput, setCommandInput] = useState('');
-    const [pasteText, setPasteText] = useState('');
+    const [menuId, setMenuId] = useState(KEYBOARD_MENU_KEYBOARD_ID);
     const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
     const [options, setOptions] = useState({
         wsUrl: 'wss://dev-remote-machine-1.tail83108.ts.net:4003/ws',
@@ -63,6 +78,7 @@ export default function Home() {
         username: '',
         password: '',
     });
+    const { config, macrosByKeyboardId, isLoading } = useKeyboardConfigurator();
     const [tmuxWindows] = useState<number[]>(() => {
         if (typeof window === 'undefined') return [0, 1, 2, 3, 4];
         const param = new URLSearchParams(window.location.search).get('tmuxWindows');
@@ -132,22 +148,6 @@ export default function Home() {
         });
     }, []);
 
-    const handleExecuteCommand = () => {
-        if (terminalRef.current && commandInput.trim()) {
-            terminalRef.current.execute(commandInput);
-            setCommandInput('');
-            setIsDialogOpen(false);
-        }
-    };
-
-    const handlePasteText = () => {
-        if (terminalRef.current && pasteText.trim()) {
-            terminalRef.current.execute(pasteText, false);
-            setPasteText('');
-            setIsDialogOpen(false);
-        }
-    };
-
     const sendStep = (step: CommandStep) => {
         if (!terminalRef.current) return;
         const times = step.repeat ?? 1;
@@ -192,14 +192,32 @@ export default function Home() {
         setIsCommandPickerOpen(false);
     };
 
-    const handleSendShortcut = (key: string) => {
-        if (terminalRef.current) {
-            terminalRef.current.sendInput(key);
+    const handlePasteFromClipboard = async () => {
+        if (!terminalRef.current) return;
+        let text = '';
+        if (navigator.clipboard?.readText) {
+            try {
+                text = await navigator.clipboard.readText();
+            } catch {
+                text = '';
+            }
         }
+        if (!text) {
+            const prompted = window.prompt('Paste text to send to terminal:');
+            if (!prompted) return;
+            text = prompted;
+        }
+        terminalRef.current.execute(text, false);
     };
 
-    const handleClearScreen = () => {
-        terminalRef.current?.execute('clear');
+    const handleCopySelection = () => {
+        const selected = window.getSelection()?.toString();
+        if (!selected) return;
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(selected).catch(() => document.execCommand('copy'));
+        } else {
+            document.execCommand('copy');
+        }
     };
 
     const handleSelectWindow = useCallback((index: number) => {
@@ -264,42 +282,116 @@ export default function Home() {
     }, [isCommandPickerOpen]);
 
     const isConnected = connectionStatus === 'connected';
+    // Menu keyboards come from the configurator layouts (main / secondary / keyboard).
+    const menuOrder = [MAIN_MENU_KEYBOARD_ID, SECONDARY_MENU_KEYBOARD_ID, KEYBOARD_MENU_KEYBOARD_ID];
+    const availableMenuIds = menuOrder.filter((id) => config.keyboards.some((keyboard) => keyboard.id === id));
+    const fallbackMenuId = availableMenuIds[0] ?? config.keyboards[0]?.id ?? KEYBOARD_MENU_KEYBOARD_ID;
+    const menuKeyboard =
+        config.keyboards.find((keyboard) => keyboard.id === menuId) ??
+        config.keyboards.find((keyboard) => keyboard.id === fallbackMenuId) ??
+        config.keyboards[0];
+    const menuMacros = menuKeyboard ? macrosByKeyboardId[menuKeyboard.id] ?? [] : [];
+    const menuSlots = menuKeyboard
+        ? menuKeyboard.grid
+              .flatMap((row, rowIdx) =>
+                  row.map((item, colIdx) => ({
+                      item,
+                      key: `${menuKeyboard.id}-${rowIdx}-${colIdx}`,
+                  })),
+              )
+              .filter((entry): entry is { item: SlotItem; key: string } => Boolean(entry.item))
+        : [];
 
-    const nextTmuxWindow = tmuxWindows.length ? tmuxWindows[tmuxCycleIndex % tmuxWindows.length] : undefined;
+    const rotateMenu = useCallback(() => {
+        if (availableMenuIds.length <= 1) return;
+        const current = menuKeyboard?.id ?? menuId;
+        const currentIdx = Math.max(0, availableMenuIds.indexOf(current));
+        const nextIdx = (currentIdx + 1) % availableMenuIds.length;
+        setMenuId(availableMenuIds[nextIdx]);
+    }, [availableMenuIds, menuId, menuKeyboard?.id]);
 
-    const stripeButtons = [
-        {
-            key: 'clear',
-            label: 'Clear screen',
-            icon: <Eraser className="h-4 w-4" />,
-            onClick: handleClearScreen,
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'ctrl-g',
-            label: 'Ctrl+G',
-            icon: <ArrowDownUp className="h-4 w-4" />,
-            onClick: () => terminalRef.current?.sendInput('\x07'),
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'enter',
-            label: 'Enter',
-            icon: <span className="text-xs font-bold">⏎</span>,
-            onClick: () => terminalRef.current?.sendInput('\r'),
-            tone: 'muted' as const,
-            disabled: !isConnected,
-        },
-        {
-            key: 'escape',
-            label: 'ESC',
-            icon: <span className="text-xs font-bold">ESC</span>,
-            onClick: () => terminalRef.current?.sendInput('\x1b'),
-            tone: 'muted' as const,
-        },
-    ];
+    const handleMenuAction = useCallback((action: ActionCode) => {
+        switch (action) {
+            case 'OPEN_MAIN_MENU':
+                setMenuId(MAIN_MENU_KEYBOARD_ID);
+                setIsCommandPickerOpen(false);
+                return;
+            case 'OPEN_SECONDARY_MENU':
+                setMenuId(SECONDARY_MENU_KEYBOARD_ID);
+                setIsCommandPickerOpen(false);
+                return;
+            case 'OPEN_KEYBOARD_MENU':
+                setMenuId(KEYBOARD_MENU_KEYBOARD_ID);
+                setIsCommandPickerOpen(false);
+                return;
+            case 'ROTATE_KEYBOARD':
+                rotateMenu();
+                return;
+            case 'OPEN_KEYBOARD_SETTINGS':
+                window.open('/keyboard-configurator/settings', '_blank');
+                return;
+            case 'TOGGLE_COMMAND_PRESETS':
+                setIsCommandPickerOpen((prev) => !prev);
+                return;
+            case 'OPEN_COMMANDER':
+                setIsCommanderOpen(true);
+                return;
+            case 'PASTE_CLIPBOARD':
+                handlePasteFromClipboard();
+                return;
+            case 'COPY_SELECTION':
+                handleCopySelection();
+                return;
+            case 'CYCLE_TMUX_WINDOW':
+                cycleTmuxWindow();
+                return;
+            default:
+                return;
+        }
+    }, [
+        cycleTmuxWindow,
+        handleCopySelection,
+        handlePasteFromClipboard,
+        rotateMenu,
+    ]);
+
+    const handleSlotPress = useCallback((item: SlotItem) => {
+        runSlotItem(item, menuMacros, {
+            sendInput: (value) => terminalRef.current?.sendInput(value),
+            executeCommand: (value, enter) => terminalRef.current?.execute(value, enter),
+            onAction: handleMenuAction,
+        });
+    }, [handleMenuAction, menuMacros]);
+
+    const renderSlotIcon = (item: SlotItem, label: string) => {
+        if (item.type === 'action') {
+            switch (item.action) {
+                case 'OPEN_MAIN_MENU':
+                    return <X className="h-4 w-4" />;
+                case 'OPEN_SECONDARY_MENU':
+                    return <Ellipsis className="h-4 w-4" />;
+                case 'OPEN_KEYBOARD_MENU':
+                    return <Keyboard className="h-4 w-4" />;
+                case 'ROTATE_KEYBOARD':
+                    return <RotateCcw className="h-4 w-4" />;
+                case 'OPEN_KEYBOARD_SETTINGS':
+                    return <Settings className="h-4 w-4" />;
+                case 'TOGGLE_COMMAND_PRESETS':
+                    return <Command className="h-4 w-4" />;
+                case 'OPEN_COMMANDER':
+                    return <Bot className="h-4 w-4" />;
+                case 'PASTE_CLIPBOARD':
+                    return <ClipboardPaste className="h-4 w-4" />;
+                case 'COPY_SELECTION':
+                    return <Copy className="h-4 w-4" />;
+                case 'CYCLE_TMUX_WINDOW':
+                    return <ArrowBigRightDash className="h-4 w-4" />;
+                default:
+                    break;
+            }
+        }
+        return <span className="text-xs font-bold">{label}</span>;
+    };
 
     return (
         <div className="h-screen overflow-hidden bg-background p-2 sm:p-4 md:p-8">
@@ -524,130 +616,33 @@ export default function Home() {
                         />
                     )}
                     <StripeButtonBar>
-                        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                            <DialogTrigger asChild>
+                        {menuSlots.map(({ item, key }) => {
+                            const label = slotLabel(item, menuMacros);
+                            const disabled = isLoading || (!isConnected && slotRequiresConnection(item));
+                            const isCommandToggle = item.type === 'action' && item.action === 'TOGGLE_COMMAND_PRESETS';
+                            return (
                                 <StripeButton
-                                label="Terminal Commander"
-                                icon={<Bot className="h-4 w-4" />}
-                                disabled={!isConnected}
-                            />
-                        </DialogTrigger>
-                            <DialogContent className="sm:max-w-[525px]">
-                                <DialogHeader>
-                                    <DialogTitle>Terminal Commander</DialogTitle>
-                                    <DialogDescription>
-                                        Execute commands or paste text to the terminal.
-                                    </DialogDescription>
-                                </DialogHeader>
-                                <Tabs defaultValue="execute" className="w-full">
-                                    <TabsList className="grid w-full grid-cols-3">
-                                        <TabsTrigger value="execute">Execute</TabsTrigger>
-                                        <TabsTrigger value="paste">Paste</TabsTrigger>
-                                        <TabsTrigger value="shortcuts">Shortcuts</TabsTrigger>
-                                    </TabsList>
-                                    <TabsContent value="execute" className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="command">Command</Label>
-                                            <Input
-                                                id="command"
-                                                value={commandInput}
-                                                onChange={(e) => setCommandInput(e.target.value)}
-                                                onKeyPress={(e) => {
-                                                    if (e.key === 'Enter') {
-                                                        handleExecuteCommand();
-                                                    }
-                                                }}
-                                                placeholder="ls -la"
-                                            />
-                                            <p className="text-sm text-muted-foreground">
-                                                This will execute the command immediately.
-                                            </p>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button onClick={handleExecuteCommand} type="submit">
-                                                Execute
-                                            </Button>
-                                        </DialogFooter>
-                                    </TabsContent>
-                                    <TabsContent value="paste" className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="paste-text">Text to Paste</Label>
-                                            <Textarea
-                                                id="paste-text"
-                                                value={pasteText}
-                                                onChange={(e) => setPasteText(e.target.value)}
-                                                placeholder="Enter multiple lines of text or commands..."
-                                                className="min-h-[120px]"
-                                            />
-                                            <p className="text-sm text-muted-foreground">
-                                                Click on any shortcut to send it to the terminal.
-                                            </p>
-                                        <ScrollArea className="h-[300px] rounded-base border-2 border-border bg-white">
-                                            <div className="p-2 space-y-2">
-                                                {keyboardShortcuts.map((shortcut) => (
-                                                    <Button
-                                                        key={shortcut.name}
-                                                            variant="neutral"
-                                                            className="w-full h-auto py-3 px-4 justify-start text-left bg-secondary-background hover:bg-main hover:text-main-foreground transition-colors"
-                                                            onClick={() => {
-                                                                handleSendShortcut(shortcut.key);
-                                                                setIsDialogOpen(false);
-                                                            }}
-                                                        >
-                                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-1 sm:gap-2">
-                                                                <span className="font-mono font-bold text-sm">{shortcut.name}</span>
-                                                                <span className="text-xs sm:text-sm text-muted-foreground sm:text-right flex-1">{shortcut.description}</span>
-                                                            </div>
-                                                        </Button>
-                                                    ))}
-                                                </div>
-                                            </ScrollArea>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button onClick={handlePasteText} type="button">
-                                                Paste
-                                            </Button>
-                                        </DialogFooter>
-                                    </TabsContent>
-                                </Tabs>
-                            </DialogContent>
-                        </Dialog>
-                        <StripeButton
-                            label={
-                                nextTmuxWindow !== undefined
-                                    ? `Switch tmux window (${nextTmuxWindow})`
-                                    : 'Switch tmux window'
-                            }
-                            icon={<ArrowBigRightDash className="h-4 w-4" />}
-                            onClick={() => {
-                                setIsCommandPickerOpen(false);
-                                cycleTmuxWindow();
-                            }}
-                            disabled={!isConnected}
-                        />
-                        <StripeButton
-                            label="Command presets"
-                            icon={<Command className="h-4 w-4" />}
-                            ref={commandPickerTriggerRef}
-                            onClick={() => {
-                                setIsCommandPickerOpen(!isCommandPickerOpen);
-                            }}
-                            disabled={!isConnected}
-                        />
-                        {stripeButtons.map((action) => (
-                            <StripeButton
-                                key={action.key}
-                                label={action.label}
-                                icon={action.icon}
-                                tone={action.tone}
-                                active={action.active}
-                                disabled={action.disabled}
-                                onClick={() => {
-                                    action.onClick();
-                                }}
-                            />
-                        ))}
+                                    key={key}
+                                    label={label}
+                                    icon={renderSlotIcon(item, label)}
+                                    disabled={disabled}
+                                    onClick={() => {
+                                        if (!isCommandToggle) {
+                                            setIsCommandPickerOpen(false);
+                                        }
+                                        handleSlotPress(item);
+                                    }}
+                                    ref={isCommandToggle ? commandPickerTriggerRef : undefined}
+                                />
+                            );
+                        })}
                     </StripeButtonBar>
+                    <TerminalCommander
+                        open={isCommanderOpen}
+                        onOpenChange={setIsCommanderOpen}
+                        terminalRef={terminalRef}
+                        isConnected={isConnected}
+                    />
                 </div>
 
                 {/* Output Log and Example Code */}
