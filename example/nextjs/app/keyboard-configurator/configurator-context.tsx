@@ -514,6 +514,45 @@ function buildKeyboardMenuGrid(): KeyboardGrid {
   return g
 }
 
+// Phone-base keyboard: combine the main menu, keyboard menu, and secondary menu keys into one layout.
+function buildPhoneBaseGrid(): KeyboardGrid {
+  const g = emptyGrid()
+  const mainMenu = buildMainMenuGrid()
+  const keyboardMenu = buildKeyboardMenuGrid()
+  const secondaryMenu = buildSecondaryMenuGrid()
+  const seen = new Set<string>()
+
+  const dedupeItem = (item: SlotItem | null): SlotItem | null => {
+    if (!item) return null
+    if (item.type === 'action') {
+      const key = `action:${item.action}`
+      if (seen.has(key)) return null
+      seen.add(key)
+      return item
+    }
+    if (item.type === 'special') {
+      const key = `special:${item.code}`
+      if (seen.has(key)) return null
+      seen.add(key)
+      return item
+    }
+    return item
+  }
+
+  g[0] = mainMenu[0].map((item) => dedupeItem(item))
+  g[1] = keyboardMenu[0].map((item) => dedupeItem(item))
+  g[2] = keyboardMenu[1].map((item) => dedupeItem(item))
+
+  // Pack the remaining menu keys into the last row, keeping their original order.
+  const row3Items = [...keyboardMenu[2], ...secondaryMenu[0]]
+    .map((item) => dedupeItem(item))
+    .filter((item): item is SlotItem => item !== null)
+    .slice(0, GRID_COLS)
+
+  g[3] = [...row3Items, ...Array.from({ length: GRID_COLS - row3Items.length }, () => null)]
+  return g
+}
+
 function buildDefaultConfig(): KeyboardConfiguratorExportV1 {
   const macros = buildDefaultMacros()
 
@@ -562,6 +601,15 @@ function buildDefaultConfig(): KeyboardConfiguratorExportV1 {
     grid: applyTemplate('qwerty'),
   }
 
+  const phoneBase: KeyboardLayout = {
+    id: 'phone_base',
+    name: 'phone-base',
+    builtIn: true,
+    active: false,
+    rotationOrder: 5,
+    grid: buildPhoneBaseGrid(),
+  }
+
   return {
     version: 1,
     meta: {
@@ -570,7 +618,7 @@ function buildDefaultConfig(): KeyboardConfiguratorExportV1 {
     },
     defaultKeyboardId: mainMenu.id,
     macros,
-    keyboards: [mainMenu, secondaryMenu, keyboardMenu, navigation, qwerty],
+    keyboards: [mainMenu, secondaryMenu, keyboardMenu, navigation, qwerty, phoneBase],
   }
 }
 
