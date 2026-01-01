@@ -111,21 +111,25 @@ export type SlotItem =
       type: 'character'
       char: string
       label?: string
+      icon?: string | null
     }
   | {
       type: 'special'
       code: SpecialCode
       label?: string
+      icon?: string | null
     }
   | {
       type: 'macro'
       macroId: string
       label?: string
+      icon?: string | null
     }
   | {
       type: 'action'
       action: ActionCode
       label?: string
+      icon?: string | null
     }
 
 type KeyboardGrid = (SlotItem | null)[][]
@@ -312,6 +316,27 @@ const ACTION_KEYS: Array<{ label: string; action: ActionCode }> = [
   { label: 'Copy', action: 'COPY_SELECTION' },
   { label: 'Cycle tmux', action: 'CYCLE_TMUX_WINDOW' },
 ]
+
+const DEFAULT_ACTION_ICONS: Record<ActionCode, string> = {
+  OPEN_MAIN_MENU: 'X',
+  OPEN_SECONDARY_MENU: 'Ellipsis',
+  OPEN_KEYBOARD_MENU: 'Keyboard',
+  ROTATE_KEYBOARD: 'RotateCcw',
+  OPEN_KEYBOARD_SETTINGS: 'Settings',
+  TOGGLE_COMMAND_PRESETS: 'Command',
+  OPEN_COMMANDER: 'Bot',
+  PASTE_CLIPBOARD: 'ClipboardPaste',
+  COPY_SELECTION: 'Copy',
+  CYCLE_TMUX_WINDOW: 'ArrowBigRightDash',
+}
+
+// Resolve the icon name for a slot: explicit overrides win, null disables defaults.
+export function resolveSlotIconName(item: SlotItem): string | null {
+  if (item.icon === null) return null
+  if (typeof item.icon === 'string' && item.icon.trim()) return item.icon
+  if (item.type === 'action') return DEFAULT_ACTION_ICONS[item.action] ?? null
+  return null
+}
 
 const CHAR_ROWS = {
   numbers: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],

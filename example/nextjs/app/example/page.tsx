@@ -9,24 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-    ArrowBigRightDash,
-    Bot,
-    ChevronDown,
-    ChevronUp,
-    ClipboardPaste,
-    Command,
-    Copy,
-    Ellipsis,
-    Github,
-    Keyboard,
-    RotateCcw,
-    Settings,
-    X,
-    Zap,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, Github, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { StripeButtonBar, StripeButton, SideButtonOverlay } from '@/components/stripe-button-bar';
+import { SlotButtonContent } from '@/components/slot-button-content';
 import { commandPresets, type CommandPreset, type CommandStep } from '../configure';
 import {
     KEYBOARD_MENU_KEYBOARD_ID,
@@ -363,35 +349,15 @@ function ExampleContent() {
         });
     }, [handleMenuAction, menuMacros]);
 
-    const renderSlotIcon = (item: SlotItem, label: string) => {
-        if (item.type === 'action') {
-            switch (item.action) {
-                case 'OPEN_MAIN_MENU':
-                    return <X className="h-4 w-4" />;
-                case 'OPEN_SECONDARY_MENU':
-                    return <Ellipsis className="h-4 w-4" />;
-                case 'OPEN_KEYBOARD_MENU':
-                    return <Keyboard className="h-4 w-4" />;
-                case 'ROTATE_KEYBOARD':
-                    return <RotateCcw className="h-4 w-4" />;
-                case 'OPEN_KEYBOARD_SETTINGS':
-                    return <Settings className="h-4 w-4" />;
-                case 'TOGGLE_COMMAND_PRESETS':
-                    return <Command className="h-4 w-4" />;
-                case 'OPEN_COMMANDER':
-                    return <Bot className="h-4 w-4" />;
-                case 'PASTE_CLIPBOARD':
-                    return <ClipboardPaste className="h-4 w-4" />;
-                case 'COPY_SELECTION':
-                    return <Copy className="h-4 w-4" />;
-                case 'CYCLE_TMUX_WINDOW':
-                    return <ArrowBigRightDash className="h-4 w-4" />;
-                default:
-                    break;
-            }
-        }
-        return <span className="text-xs font-bold">{label}</span>;
-    };
+    const renderSlotIcon = (item: SlotItem, label: string) => (
+        <SlotButtonContent
+            item={item}
+            label={label}
+            iconClassName="h-4 w-4"
+            iconLabelClassName="text-[9px] uppercase tracking-wide text-foreground/70"
+            labelClassName="text-xs font-bold"
+        />
+    );
 
     return (
         <div className="h-screen overflow-hidden bg-background p-2 sm:p-4 md:p-8">

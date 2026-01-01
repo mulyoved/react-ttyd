@@ -23,10 +23,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { LucideIcon, LUCIDE_ICON_NAMES } from '@/components/lucide-icon'
+import { SlotButtonContent } from '@/components/slot-button-content'
 
 import {
   formatSequence,
   LIBRARY_KINDS,
+  resolveSlotIconName,
   setDragPayload,
   slotLabel,
   useKeyboardConfigurator,
@@ -88,6 +91,58 @@ export default function KeyboardConfiguratorPage() {
   const settingsHref = urlQueryString
     ? `/keyboard-configurator/settings?${urlQueryString}`
     : '/keyboard-configurator/settings'
+
+  const [iconPickerOpen, setIconPickerOpen] = React.useState(false)
+  const [iconQuery, setIconQuery] = React.useState('')
+  const iconPickerRef = React.useRef<HTMLDivElement | null>(null)
+  const iconTriggerRef = React.useRef<HTMLButtonElement | null>(null)
+
+  const filteredIconNames = React.useMemo(() => {
+    const q = iconQuery.trim().toLowerCase()
+    if (!q) return LUCIDE_ICON_NAMES
+    return LUCIDE_ICON_NAMES.filter((name) => name.toLowerCase().includes(q))
+  }, [iconQuery])
+
+  const MAX_ICON_RESULTS = 120
+  const visibleIconNames = React.useMemo(
+    () => filteredIconNames.slice(0, MAX_ICON_RESULTS),
+    [filteredIconNames],
+  )
+  const hasMoreIcons = filteredIconNames.length > visibleIconNames.length
+
+  React.useEffect(() => {
+    if (!iconPickerOpen) return
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (iconPickerRef.current?.contains(target)) return
+      if (iconTriggerRef.current?.contains(target)) return
+      setIconPickerOpen(false)
+    }
+    window.addEventListener('mousedown', handleClick)
+    return () => window.removeEventListener('mousedown', handleClick)
+  }, [iconPickerOpen])
+
+  React.useEffect(() => {
+    setIconPickerOpen(false)
+    setIconQuery('')
+  }, [selectedSlot?.row, selectedSlot?.col])
+
+  const applySlotIcon = React.useCallback(
+    (nextIcon: string | null | undefined) => {
+      if (!selectedSlot || !selectedItem) return
+      if (nextIcon === undefined) {
+        const { icon: _icon, ...rest } = selectedItem
+        setSlot(selectedSlot.row, selectedSlot.col, rest as typeof selectedItem)
+        return
+      }
+      setSlot(selectedSlot.row, selectedSlot.col, { ...selectedItem, icon: nextIcon })
+    },
+    [selectedItem, selectedSlot, setSlot],
+  )
+
+  const resolvedSelectedIcon = selectedItem ? resolveSlotIconName(selectedItem) : null
+  const selectedIconLabel =
+    selectedItem?.icon === null ? 'None' : selectedItem?.icon ? selectedItem.icon : 'Default'
 
   // -----------------------------
   // Render
@@ -265,7 +320,15 @@ export default function KeyboardConfiguratorPage() {
                                 )}
                               >
                                 <span className="flex flex-col items-center leading-none">
-                                  <span>{label}</span>
+                                  {item ? (
+                                    <SlotButtonContent
+                                      item={item}
+                                      label={label}
+                                      className="gap-0.5"
+                                      iconLabelClassName="text-sm font-base normal-case text-foreground"
+                                      labelClassName="text-sm font-base"
+                                    />
+                                  ) : null}
                                   {isMacro ? <span className="mt-1 text-[10px] text-foreground/60">macro</span> : null}
                                 </span>
                               </button>
@@ -349,6 +412,98 @@ export default function KeyboardConfiguratorPage() {
                                   }}
                                   disabled={!selectedItem}
                                 />
+                              </div>
+                            </div>
+
+                            <div className="mt-2 space-y-1">
+                              <Label>Icon</Label>
+                              <div className="relative" ref={iconPickerRef}>
+                                <Button
+                                  type="button"
+                                  variant="neutral"
+                                  size="sm"
+                                  ref={iconTriggerRef}
+                                  disabled={!selectedItem}
+                                  onClick={() => setIconPickerOpen((prev) => !prev)}
+                                  className="w-full justify-between"
+                                >
+                                  <span className="flex items-center gap-2">
+                                    {resolvedSelectedIcon ? (
+                                      <LucideIcon name={resolvedSelectedIcon} className="h-4 w-4" />
+                                    ) : null}
+                                    <span className="text-sm">{selectedIconLabel}</span>
+                                  </span>
+                                  <span className="text-[11px] text-foreground/60">Change</span>
+                                </Button>
+
+                                {iconPickerOpen ? (
+                                  <div className="absolute left-0 right-0 z-50 mt-2 rounded-base border-2 border-border bg-background shadow-shadow">
+                                    <div className="flex items-center gap-2 border-b border-border p-2">
+                                      <Input
+                                        value={iconQuery}
+                                        onChange={(e) => setIconQuery(e.target.value)}
+                                        placeholder="Search icons…"
+                                      />
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="neutral"
+                                        onClick={() => {
+                                          applySlotIcon(undefined)
+                                          setIconPickerOpen(false)
+                                        }}
+                                      >
+                                        Default
+                                      </Button>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="neutral"
+                                        onClick={() => {
+                                          applySlotIcon(null)
+                                          setIconPickerOpen(false)
+                                        }}
+                                      >
+                                        None
+                                      </Button>
+                                    </div>
+                                    <ScrollArea className="h-64">
+                                      <div className="grid grid-cols-4 gap-2 p-2 sm:grid-cols-6">
+                                        {visibleIconNames.map((name) => (
+                                          <button
+                                            key={name}
+                                            type="button"
+                                            title={name}
+                                            className={cn(
+                                              'flex flex-col items-center gap-1 rounded-base border-2 border-border bg-secondary-background px-2 py-2 text-[10px] transition-transform',
+                                              'hover:-translate-y-px',
+                                            )}
+                                            onClick={() => {
+                                              applySlotIcon(name)
+                                              setIconPickerOpen(false)
+                                            }}
+                                          >
+                                            <LucideIcon name={name} className="h-4 w-4" />
+                                            <span className="truncate max-w-full">{name}</span>
+                                          </button>
+                                        ))}
+                                        {filteredIconNames.length === 0 ? (
+                                          <div className="col-span-full py-6 text-center text-xs text-foreground/70">
+                                            No icons match your search.
+                                          </div>
+                                        ) : null}
+                                      </div>
+                                      {hasMoreIcons ? (
+                                        <div className="border-t border-border px-2 py-2 text-center text-[11px] text-foreground/60">
+                                          Showing first {visibleIconNames.length} icons. Refine your search to see more.
+                                        </div>
+                                      ) : null}
+                                    </ScrollArea>
+                                  </div>
+                                ) : null}
+                              </div>
+                              <div className="text-[11px] text-foreground/60">
+                                Defaults apply when no icon is set; choose “None” to hide the icon.
                               </div>
                             </div>
                           </div>
@@ -554,6 +709,7 @@ function LibraryResultItem({
   onPick: () => void
   onDragStart: (ev: React.DragEvent) => void
 }) {
+  const iconName = resolveSlotIconName(result.item)
   return (
     <button
       type="button"
@@ -567,7 +723,10 @@ function LibraryResultItem({
       title={result.tooltip}
     >
       <div className="flex items-start justify-between gap-2">
-        <div className="text-sm font-base">{result.title}</div>
+        <div className="flex min-w-0 items-start gap-2">
+          {iconName ? <LucideIcon name={iconName} className="h-4 w-4 text-foreground/70" /> : null}
+          <div className="text-sm font-base">{result.title}</div>
+        </div>
         <Badge variant="neutral">{result.kind}</Badge>
       </div>
       {result.description ? (

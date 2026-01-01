@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "meta": {
+    "name": "phone-base",
+    "savedAt": "2026-01-01T11:00:55.862Z"
+  },
+  "keyboard": {
+    "id": "phone_base",
+    "name": "phone-base",
+    "builtIn": true,
+    "active": false,
+    "rotationOrder": 5,
+    "grid": [
+      [
+        {
+          "type": "action",
+          "action": "OPEN_KEYBOARD_MENU",
+          "label": "Keys"
+        },
+        {
+          "type": "special",
+          "code": "CTRL_RIGHT",
+          "label": "Window"
+        },
+        {
+          "type": "special",
+          "code": "CTRL_DOWN",
+          "label": "Pane"
+        },
+        {
+          "type": "action",
+          "action": "TOGGLE_COMMAND_PRESETS",
+          "label": "Cmds"
+        },
+        {
+          "type": "special",
+          "code": "ENTER"
+        },
+        {
+          "type": "special",
+          "code": "ESC"
+        },
+        {
+          "type": "action",
+          "action": "OPEN_SECONDARY_MENU",
+          "label": "More"
+        },
+        {
+          "type": "action",
+          "action": "ROTATE_KEYBOARD",
+          "label": "Rotate"
+        },
+        {
+          "type": "action",
+          "action": "OPEN_KEYBOARD_SETTINGS",
+          "label": "Config"
+        },
+        null
+      ],
+      [
+        {
+          "type": "action",
+          "action": "OPEN_MAIN_MENU",
+          "label": "Back"
+        },
+        {
+          "type": "action",
+          "action": "OPEN_COMMANDER",
+          "label": "Cmdr"
+        },
+        null,
+        {
+          "type": "action",
+          "action": "CYCLE_TMUX_WINDOW",
+          "label": "Cycle"
+        },
+        {
+          "type": "special",
+          "code": "CTRL_L",
+          "label": "Clear"
+        },
+        {
+          "type": "special",
+          "code": "CTRL_G",
+          "label": "Ctrl+G"
+        },
+        null,
+        null,
+        {
+          "type": "action",
+          "action": "PASTE_CLIPBOARD",
+          "label": "Paste"
+        },
+        {
+          "type": "action",
+          "action": "COPY_SELECTION",
+          "label": "Copy"
+        }
+      ],
+      [
+        {
+          "type": "special",
+          "code": "TAB"
+        },
+        {
+          "type": "special",
+          "code": "CTRL_C",
+          "label": "Ctrl+C"
+        },
+        {
+          "type": "special",
+          "code": "ARROW_LEFT"
+        },
+        {
+          "type": "special",
+          "code": "ARROW_RIGHT"
+        },
+        {
+          "type": "special",
+          "code": "ARROW_UP"
+        },
+        {
+          "type": "special",
+          "code": "ARROW_DOWN"
+        },
+        {
+          "type": "special",
+          "code": "HOME"
+        },
+        {
+          "type": "special",
+          "code": "END"
+        },
+        {
+          "type": "special",
+          "code": "PAGE_UP"
+        },
+        {
+          "type": "special",
+          "code": "PAGE_DOWN"
+        }
+      ],
+      [
+        {
+          "type": "macro",
+          "macroId": "cmd_fix"
+        },
+        {
+          "type": "macro",
+          "macroId": "cmd_skip"
+        },
+        {
+          "type": "special",
+          "code": "CTRL_B_N",
+          "label": "Next all",
+          "icon": "ArrowBigRightDash"
+        },
+        {
+          "type": "special",
+          "code": "ALT_S",
+          "label": "~"
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ]
+  },
+  "macros": [
+    {
+      "id": "cmd_fix",
+      "name": "Command: fix",
+      "label": "fix",
+      "category": "Commands",
+      "script": "{\n  \"type\": \"command\",\n  \"value\": \"fix\"\n}"
+    },
+    {
+      "id": "cmd_skip",
+      "name": "Command: skip",
+      "label": "skip",
+      "category": "Commands",
+      "script": "{\n  \"type\": \"command\",\n  \"value\": \"skip\"\n}"
+    }
+  ],
+  "isDefault": false
+}

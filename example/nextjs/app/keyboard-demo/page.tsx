@@ -4,16 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import type { RendererType, TtydHandle } from 'react-ttyd';
-import {
-  ArrowBigRightDash,
-  Bot,
-  ClipboardPaste,
-  Command,
-  Copy,
-  Keyboard,
-  RotateCcw,
-  Settings,
-} from 'lucide-react';
+import { SlotButtonContent } from '@/components/slot-button-content';
 import { cn } from '@/lib/utils';
 import { SideButtonOverlay } from '@/components/stripe-button-bar';
 import { TerminalCommander } from '@/components/terminal-commander';
@@ -243,52 +234,15 @@ function KeyboardDemoContent() {
   }, [currentMacros, handleMenuAction]);
 
   // Action slots show an icon + tiny label; other slots just show the key label.
-  const renderSlotIcon = (item: SlotItem, label: string) => {
-    if (item.type === 'action') {
-      let icon: JSX.Element | null = null;
-      switch (item.action) {
-        case 'OPEN_MAIN_MENU':
-          icon = <Keyboard className="h-4 w-4" />;
-          break;
-        case 'OPEN_SECONDARY_MENU':
-          icon = <Command className="h-4 w-4" />;
-          break;
-        case 'OPEN_KEYBOARD_MENU':
-          icon = <Keyboard className="h-4 w-4" />;
-          break;
-        case 'ROTATE_KEYBOARD':
-          icon = <RotateCcw className="h-4 w-4" />;
-          break;
-        case 'OPEN_KEYBOARD_SETTINGS':
-          icon = <Settings className="h-4 w-4" />;
-          break;
-        case 'TOGGLE_COMMAND_PRESETS':
-          icon = <Command className="h-4 w-4" />;
-          break;
-        case 'OPEN_COMMANDER':
-          icon = <Bot className="h-4 w-4" />;
-          break;
-        case 'PASTE_CLIPBOARD':
-          icon = <ClipboardPaste className="h-4 w-4" />;
-          break;
-        case 'COPY_SELECTION':
-          icon = <Copy className="h-4 w-4" />;
-          break;
-        case 'CYCLE_TMUX_WINDOW':
-          icon = <ArrowBigRightDash className="h-4 w-4" />;
-          break;
-        default:
-          break;
-      }
-      return (
-        <span className="flex flex-col items-center gap-0.5">
-          {icon}
-          <span className="text-[9px] uppercase tracking-wide text-foreground/70">{label}</span>
-        </span>
-      );
-    }
-    return <span className="text-xs font-semibold">{label}</span>;
-  };
+  const renderSlotIcon = (item: SlotItem, label: string) => (
+    <SlotButtonContent
+      item={item}
+      label={label}
+      iconClassName="h-4 w-4"
+      iconLabelClassName="text-[9px] uppercase tracking-wide text-foreground/70"
+      labelClassName="text-xs font-semibold"
+    />
+  );
 
   useEffect(() => {
     if (!isCommandPickerOpen) return;
