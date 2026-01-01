@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "meta": {
+    "name": "QWERTY Keyboard",
+    "savedAt": "2026-01-01T12:24:55.853Z"
+  },
+  "keyboard": {
+    "id": "qwerty_keyboard",
+    "name": "QWERTY Keyboard",
+    "builtIn": true,
+    "active": false,
+    "rotationOrder": 4,
+    "grid": [
+      [
+        {
+          "type": "character",
+          "char": "1"
+        },
+        {
+          "type": "character",
+          "char": "2"
+        },
+        {
+          "type": "character",
+          "char": "3"
+        },
+        {
+          "type": "character",
+          "char": "4"
+        },
+        {
+          "type": "character",
+          "char": "5"
+        },
+        {
+          "type": "character",
+          "char": "6"
+        },
+        {
+          "type": "character",
+          "char": "7"
+        },
+        {
+          "type": "character",
+          "char": "8"
+        },
+        {
+          "type": "character",
+          "char": "9"
+        },
+        {
+          "type": "character",
+          "char": "0"
+        }
+      ],
+      [
+        {
+          "type": "character",
+          "char": "Q"
+        },
+        {
+          "type": "character",
+          "char": "W"
+        },
+        {
+          "type": "character",
+          "char": "E"
+        },
+        {
+          "type": "character",
+          "char": "R"
+        },
+        {
+          "type": "character",
+          "char": "T"
+        },
+        {
+          "type": "character",
+          "char": "Y"
+        },
+        {
+          "type": "character",
+          "char": "U"
+        },
+        {
+          "type": "character",
+          "char": "I"
+        },
+        {
+          "type": "character",
+          "char": "O"
+        },
+        {
+          "type": "character",
+          "char": "P"
+        }
+      ],
+      [
+        {
+          "type": "character",
+          "char": "A"
+        },
+        {
+          "type": "character",
+          "char": "S"
+        },
+        {
+          "type": "character",
+          "char": "D"
+        },
+        {
+          "type": "character",
+          "char": "F"
+        },
+        {
+          "type": "character",
+          "char": "G"
+        },
+        {
+          "type": "character",
+          "char": "H"
+        },
+        {
+          "type": "character",
+          "char": "J"
+        },
+        {
+          "type": "character",
+          "char": "K"
+        },
+        {
+          "type": "character",
+          "char": "L"
+        },
+        {
+          "type": "character",
+          "char": ";"
+        }
+      ],
+      [
+        {
+          "type": "character",
+          "char": "Z"
+        },
+        {
+          "type": "character",
+          "char": "X"
+        },
+        {
+          "type": "character",
+          "char": "C"
+        },
+        {
+          "type": "character",
+          "char": "V"
+        },
+        {
+          "type": "character",
+          "char": "B"
+        },
+        {
+          "type": "character",
+          "char": "N"
+        },
+        {
+          "type": "character",
+          "char": "M"
+        },
+        {
+          "type": "character",
+          "char": ","
+        },
+        {
+          "type": "character",
+          "char": "."
+        },
+        {
+          "type": "character",
+          "char": "/"
+        }
+      ]
+    ]
+  },
+  "macros": [],
+  "isDefault": false
+}

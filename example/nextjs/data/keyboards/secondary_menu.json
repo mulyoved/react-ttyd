@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "meta": {
+    "name": "Secondary Menu",
+    "savedAt": "2026-01-01T12:24:54.961Z"
+  },
+  "keyboard": {
+    "id": "secondary_menu",
+    "name": "Secondary Menu",
+    "builtIn": true,
+    "active": true,
+    "rotationOrder": 1,
+    "grid": [
+      [
+        {
+          "type": "special",
+          "code": "CTRL_B_N",
+          "label": "Next all"
+        },
+        {
+          "type": "special",
+          "code": "ALT_S",
+          "label": "~"
+        },
+        {
+          "type": "action",
+          "action": "OPEN_MAIN_MENU",
+          "label": "Back"
+        },
+        {
+          "type": "action",
+          "action": "OPEN_KEYBOARD_MENU",
+          "label": "Keys"
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ]
+  },
+  "macros": [],
+  "isDefault": false
+}

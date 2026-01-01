@@ -1,71 +1,31 @@
 {
   "version": 1,
   "meta": {
-    "name": "phone-base",
-    "savedAt": "2026-01-01T12:24:56.150Z"
+    "name": "Keyboard Menu",
+    "savedAt": "2026-01-01T12:24:55.250Z"
   },
   "keyboard": {
-    "id": "phone_base",
-    "name": "phone-base",
+    "id": "keyboard_menu",
+    "name": "Keyboard Menu",
     "builtIn": true,
-    "active": false,
-    "rotationOrder": 5,
+    "active": true,
+    "rotationOrder": 2,
     "grid": [
       [
         {
           "type": "action",
-          "action": "OPEN_KEYBOARD_MENU",
-          "label": "Keys"
+          "action": "OPEN_MAIN_MENU",
+          "label": "Back"
         },
         {
-          "type": "special",
-          "code": "CTRL_RIGHT",
-          "label": "Window"
-        },
-        {
-          "type": "special",
-          "code": "CTRL_DOWN",
-          "label": "Pane"
+          "type": "action",
+          "action": "OPEN_COMMANDER",
+          "label": "Cmdr"
         },
         {
           "type": "action",
           "action": "TOGGLE_COMMAND_PRESETS",
           "label": "Cmds"
-        },
-        {
-          "type": "special",
-          "code": "ENTER"
-        },
-        {
-          "type": "special",
-          "code": "ESC"
-        },
-        {
-          "type": "action",
-          "action": "OPEN_SECONDARY_MENU",
-          "label": "More"
-        },
-        {
-          "type": "action",
-          "action": "ROTATE_KEYBOARD",
-          "label": "Rotate"
-        },
-        {
-          "type": "action",
-          "action": "OPEN_KEYBOARD_SETTINGS",
-          "label": "Config"
-        },
-        {
-          "type": "action",
-          "action": "OPEN_MAIN_MENU",
-          "label": "Back"
-        }
-      ],
-      [
-        {
-          "type": "action",
-          "action": "OPEN_COMMANDER",
-          "label": "Cmdr"
         },
         {
           "type": "action",
@@ -83,6 +43,14 @@
           "label": "Ctrl+G"
         },
         {
+          "type": "special",
+          "code": "ENTER"
+        },
+        {
+          "type": "special",
+          "code": "ESC"
+        },
+        {
           "type": "action",
           "action": "PASTE_CLIPBOARD",
           "label": "Paste"
@@ -91,7 +59,9 @@
           "type": "action",
           "action": "COPY_SELECTION",
           "label": "Copy"
-        },
+        }
+      ],
+      [
         {
           "type": "special",
           "code": "TAB"
@@ -108,9 +78,7 @@
         {
           "type": "special",
           "code": "ARROW_RIGHT"
-        }
-      ],
-      [
+        },
         {
           "type": "special",
           "code": "ARROW_UP"
@@ -134,7 +102,9 @@
         {
           "type": "special",
           "code": "PAGE_DOWN"
-        },
+        }
+      ],
+      [
         {
           "type": "macro",
           "macroId": "cmd_fix"
@@ -144,15 +114,33 @@
           "macroId": "cmd_skip"
         },
         {
-          "type": "special",
-          "code": "CTRL_B_N",
-          "label": "Next all"
+          "type": "action",
+          "action": "OPEN_SECONDARY_MENU",
+          "label": "More"
         },
         {
-          "type": "special",
-          "code": "ALT_S",
-          "label": "~"
-        }
+          "type": "action",
+          "action": "OPEN_KEYBOARD_SETTINGS",
+          "label": "Config"
+        },
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
       ]
     ]
   },

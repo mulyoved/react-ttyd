@@ -1,0 +1,155 @@
+{
+  "version": 1,
+  "meta": {
+    "name": "Navigation Keyboard",
+    "savedAt": "2026-01-01T12:24:55.556Z"
+  },
+  "keyboard": {
+    "id": "navigation_keyboard",
+    "name": "Navigation Keyboard",
+    "builtIn": true,
+    "active": false,
+    "rotationOrder": 3,
+    "grid": [
+      [
+        {
+          "type": "special",
+          "code": "HOME"
+        },
+        {
+          "type": "special",
+          "code": "END"
+        },
+        {
+          "type": "special",
+          "code": "PAGE_UP"
+        },
+        {
+          "type": "special",
+          "code": "PAGE_DOWN"
+        },
+        {
+          "type": "special",
+          "code": "ARROW_LEFT"
+        },
+        {
+          "type": "special",
+          "code": "ARROW_UP"
+        },
+        {
+          "type": "special",
+          "code": "ARROW_DOWN"
+        },
+        {
+          "type": "special",
+          "code": "ARROW_RIGHT"
+        },
+        {
+          "type": "macro",
+          "macroId": "nav_back"
+        },
+        {
+          "type": "macro",
+          "macroId": "nav_forward"
+        }
+      ],
+      [
+        {
+          "type": "special",
+          "code": "TAB"
+        },
+        {
+          "type": "special",
+          "code": "ESC"
+        },
+        {
+          "type": "special",
+          "code": "ENTER"
+        },
+        {
+          "type": "special",
+          "code": "BACKSPACE"
+        },
+        {
+          "type": "special",
+          "code": "SPACE"
+        },
+        {
+          "type": "special",
+          "code": "DELETE"
+        },
+        {
+          "type": "macro",
+          "macroId": "nav_refresh"
+        },
+        {
+          "type": "macro",
+          "macroId": "nav_search"
+        },
+        {
+          "type": "action",
+          "action": "ROTATE_KEYBOARD"
+        },
+        {
+          "type": "action",
+          "action": "OPEN_KEYBOARD_SETTINGS"
+        }
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ],
+      [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+      ]
+    ]
+  },
+  "macros": [
+    {
+      "id": "nav_back",
+      "name": "Navigation: Back",
+      "label": "Back",
+      "category": "Navigation",
+      "script": "{\n  \"type\": \"action\",\n  \"name\": \"nav_back\"\n}"
+    },
+    {
+      "id": "nav_forward",
+      "name": "Navigation: Forward",
+      "label": "Fwd",
+      "category": "Navigation",
+      "script": "{\n  \"type\": \"action\",\n  \"name\": \"nav_forward\"\n}"
+    },
+    {
+      "id": "nav_refresh",
+      "name": "Navigation: Refresh",
+      "label": "↻",
+      "category": "Navigation",
+      "script": "{\n  \"type\": \"action\",\n  \"name\": \"nav_refresh\"\n}"
+    },
+    {
+      "id": "nav_search",
+      "name": "Navigation: Search",
+      "label": "Search",
+      "category": "Navigation",
+      "script": "{\n  \"type\": \"action\",\n  \"name\": \"nav_search\"\n}"
+    }
+  ],
+  "isDefault": false
+}

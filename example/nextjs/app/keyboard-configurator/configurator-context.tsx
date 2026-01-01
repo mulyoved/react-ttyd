@@ -321,7 +321,7 @@ const DEFAULT_ACTION_ICONS: Record<ActionCode, string> = {
   OPEN_MAIN_MENU: 'X',
   OPEN_SECONDARY_MENU: 'Ellipsis',
   OPEN_KEYBOARD_MENU: 'Keyboard',
-  ROTATE_KEYBOARD: 'RotateCcw',
+  ROTATE_KEYBOARD: 'Keyboard',
   OPEN_KEYBOARD_SETTINGS: 'Settings',
   TOGGLE_COMMAND_PRESETS: 'Command',
   OPEN_COMMANDER: 'Bot',
@@ -330,11 +330,20 @@ const DEFAULT_ACTION_ICONS: Record<ActionCode, string> = {
   CYCLE_TMUX_WINDOW: 'ArrowBigRightDash',
 }
 
+const DEFAULT_SPECIAL_ICONS: Partial<Record<SpecialCode, string>> = {
+  ENTER: 'CornerDownLeft',
+  ESC: 'X',
+  CTRL_RIGHT: 'AppWindow',
+  CTRL_DOWN: 'SquareSplitVertical',
+  ALT_S: 'LineSquiggle',
+}
+
 // Resolve the icon name for a slot: explicit overrides win, null disables defaults.
 export function resolveSlotIconName(item: SlotItem): string | null {
   if (item.icon === null) return null
   if (typeof item.icon === 'string' && item.icon.trim()) return item.icon
   if (item.type === 'action') return DEFAULT_ACTION_ICONS[item.action] ?? null
+  if (item.type === 'special') return DEFAULT_SPECIAL_ICONS[item.code] ?? null
   return null
 }
 
@@ -541,7 +550,7 @@ function buildKeyboardMenuGrid(): KeyboardGrid {
 
 // Phone-base keyboard: combine the main menu, keyboard menu, and secondary menu keys into one layout.
 function buildPhoneBaseGrid(): KeyboardGrid {
-  const g = emptyGrid()
+  const g = emptyGrid(3, GRID_COLS)
   const mainMenu = buildMainMenuGrid()
   const keyboardMenu = buildKeyboardMenuGrid()
   const secondaryMenu = buildSecondaryMenuGrid()
@@ -564,17 +573,25 @@ function buildPhoneBaseGrid(): KeyboardGrid {
     return item
   }
 
-  g[0] = mainMenu[0].map((item) => dedupeItem(item))
-  g[1] = keyboardMenu[0].map((item) => dedupeItem(item))
-  g[2] = keyboardMenu[1].map((item) => dedupeItem(item))
-
-  // Pack the remaining menu keys into the last row, keeping their original order.
-  const row3Items = [...keyboardMenu[2], ...secondaryMenu[0]]
+  const flattened = [
+    ...mainMenu[0],
+    ...keyboardMenu[0],
+    ...keyboardMenu[1],
+    ...keyboardMenu[2],
+    ...secondaryMenu[0],
+  ]
     .map((item) => dedupeItem(item))
     .filter((item): item is SlotItem => item !== null)
-    .slice(0, GRID_COLS)
 
-  g[3] = [...row3Items, ...Array.from({ length: GRID_COLS - row3Items.length }, () => null)]
+  const rows = Array.from({ length: 3 }, (_, rowIdx) => {
+    const start = rowIdx * GRID_COLS
+    const slice = flattened.slice(start, start + GRID_COLS)
+    return [...slice, ...Array.from({ length: GRID_COLS - slice.length }, () => null)]
+  })
+
+  g[0] = rows[0]
+  g[1] = rows[1]
+  g[2] = rows[2]
   return g
 }
 

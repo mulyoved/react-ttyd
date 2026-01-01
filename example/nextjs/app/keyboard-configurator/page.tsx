@@ -143,6 +143,10 @@ export default function KeyboardConfiguratorPage() {
   const resolvedSelectedIcon = selectedItem ? resolveSlotIconName(selectedItem) : null
   const selectedIconLabel =
     selectedItem?.icon === null ? 'None' : selectedItem?.icon ? selectedItem.icon : 'Default'
+  const selectedKeyId = React.useMemo(() => {
+    if (!selectedSlot) return ''
+    return `${selectedKeyboard.id}:r${selectedSlot.row + 1}c${selectedSlot.col + 1}`
+  }, [selectedKeyboard.id, selectedSlot])
 
   // -----------------------------
   // Render
@@ -381,6 +385,7 @@ export default function KeyboardConfiguratorPage() {
                                 <div className="text-[11px] text-foreground/60">
                                   Row {selectedSlot.row + 1}, Col {selectedSlot.col + 1}
                                 </div>
+                                <div className="text-[11px] font-mono text-foreground/60">Key ID: {selectedKeyId}</div>
                               </div>
                               <Button
                                 variant="neutral"
